@@ -12,14 +12,14 @@ import { Events } from "./events.js";
 import { Signal } from "./signal.js";
 import { FeatureExtractor } from "./feature-extractor.js";
 import { ChannelVis } from "./channel_vis.js";
+import { BlocklyMain } from "./blockly-main.js";
+
 export const NeuroScope = class {
   constructor() {
-    //this.channel_vis = new ChannelVis();
-    console.log("NeuroScope");
+    this.blocklyMain = new BlocklyMain();
     this.signal_handler = new Signal(512);
     this.events = new Events();
     this.ble = new BLE(this.signal_handler.add_data.bind(this.signal_handler));
-    this.feature_extractor = new FeatureExtractor(256);
 
     setInterval(() => {
       this.signal_handler.plot_data(0);
@@ -28,6 +28,23 @@ export const NeuroScope = class {
       this.signal_handler.plot_data(3);
     }, 500);
 
+    //this.channel_vis = new ChannelVis();
+    /*
+    console.log("NeuroScope");
+    this.signal_handler = new Signal(512);
+    this.events = new Events();
+    this.ble = new BLE(this.signal_handler.add_data.bind(this.signal_handler));
+    this.feature_extractor = new FeatureExtractor(256);
+    this.blocklyMain = new BlocklyMain();
+
+    setInterval(() => {
+      this.signal_handler.plot_data(0);
+      this.signal_handler.plot_data(1);
+      this.signal_handler.plot_data(2);
+      this.signal_handler.plot_data(3);
+    }, 500);
+
+    */
     /*
         this.muse_visualizer = new MuseGraph("graph", window.innerWidth * 0.8, window.innerHeight * 0.5, 256 * 2, 1)
         this.graph_handlers = {"muse": this.muse_visualizer}
