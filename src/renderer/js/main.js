@@ -13,20 +13,36 @@ import { Signal } from "./signal.js";
 import { FeatureExtractor } from "./feature-extractor.js";
 import { ChannelVis } from "./channel_vis.js";
 import { BlocklyMain } from "./blockly-main.js";
+import { BandPowerVis } from "./band-power-vis.js";
 
 export const NeuroScope = class {
   constructor() {
     this.blocklyMain = new BlocklyMain();
     this.signal_handler = new Signal(512);
-    this.events = new Events();
+    this.bpBis = new BandPowerVis();
+    this.events = new Events(this.blocklyMain);
     this.ble = new BLE(this.signal_handler.add_data.bind(this.signal_handler));
-
+    this.feature_extractor = new FeatureExtractor(256);
+    this.blocklyMain.start();
     setInterval(() => {
       this.signal_handler.plot_data(0);
       this.signal_handler.plot_data(1);
       this.signal_handler.plot_data(2);
       this.signal_handler.plot_data(3);
-    }, 500);
+
+      let data = this.signal_handler.get_data();
+      //let beta = this.feature_extractor.getAverageRelativeBandPower(data, "beta");
+      //console.log(beta);
+      let band_powers = this.feature_extractor.getFormattedBandPowers(data);
+      this.bpBis.update(band_powers);
+
+      //console.log(_data);
+    }, 400);
+
+    setTimeout(() => {
+      //let test_data = { delta: 10, theta: 20, alpha: 30, beta: 40, gamma: 50 };
+      //this.bpBis.update(test_data);
+    }, 2000);
 
     //this.channel_vis = new ChannelVis();
     /*
@@ -34,7 +50,6 @@ export const NeuroScope = class {
     this.signal_handler = new Signal(512);
     this.events = new Events();
     this.ble = new BLE(this.signal_handler.add_data.bind(this.signal_handler));
-    this.feature_extractor = new FeatureExtractor(256);
     this.blocklyMain = new BlocklyMain();
 
     setInterval(() => {

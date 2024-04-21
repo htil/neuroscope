@@ -69,7 +69,9 @@ export const Signal = class {
       });
     }
     this.channel_vis.plot_external(electrode, this.channels_d3_plot[electrode]);
+  }
 
-    //return this.channels;
+  get_data() {
+    return this.channels;
   }
 };

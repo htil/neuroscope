@@ -37,7 +37,7 @@ export const FeatureExtractor = class {
     var theta = this.getBandPower(channel, "theta").bp;
     var alpha = this.getBandPower(channel, "alpha").bp;
     var beta = this.getBandPower(channel, "beta").bp;
-    var gamma = this.getBandPower(channel, "beta").bp;
+    var gamma = this.getBandPower(channel, "gamma").bp;
     //console.log({delta, theta, alpha, beta, gamma})
     return target / (delta + theta + alpha + beta + gamma);
   }
@@ -76,6 +76,16 @@ export const FeatureExtractor = class {
     }
     let avg = this.getAverage(features);
     return avg ? avg : 0;
+  }
+
+  getFormattedBandPowers(channels) {
+    return {
+      delta: this.getAverageRelativeBandPower(channels, "delta") * 100,
+      theta: this.getAverageRelativeBandPower(channels, "theta") * 100,
+      alpha: this.getAverageRelativeBandPower(channels, "alpha") * 100,
+      beta: this.getAverageRelativeBandPower(channels, "beta") * 100,
+      gamma: this.getAverageRelativeBandPower(channels, "gamma") * 100
+    };
   }
 
   getAverageBetaOverDeltaPower(channels) {

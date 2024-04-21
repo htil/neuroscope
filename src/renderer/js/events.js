@@ -1,10 +1,15 @@
 import { SessionLineGraph } from "./session.js";
+import { BlocklyMain } from "./blockly-main.js";
 
 export const Events = class {
-  constructor() {
+  constructor(blockly) {
     //this.device = device
     //this.ble = ble
+    this.blockly = blockly;
     this.session_graph = {};
+
+    /* Blockly Events */
+    this.create_event("run", this.execute_code.bind(this));
 
     // Local store
     //this.create_event("start_local_store", this.start_local_store.bind(this));
@@ -17,6 +22,13 @@ export const Events = class {
   create_event(id, _func) {
     document.getElementById(id).onclick = _func;
   }
+
+  /* Blockly Events */
+  execute_code() {
+    this.blockly.runCode();
+  }
+
+  /* Drone events */
 
   takeoff_drone() {
     console.log("take off");

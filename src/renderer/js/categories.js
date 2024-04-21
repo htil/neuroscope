@@ -1,28 +1,20 @@
 export const Categories = {
   cat_logic: {
-  name: "Logic",
-  colour: "%{BKY_LOGIC_HUE}",
-  modules: [
-    "controls_if",
-    "controls_ifelse",
-    "logic_compare",
-  ]
+    name: "Logic",
+    colour: "%{BKY_LOGIC_HUE}",
+    modules: ["controls_if", "controls_ifelse", "logic_compare"]
   },
 
   cat_loops: {
     name: "Loops",
     colour: "%{BKY_LOOPS_HUE}",
-    modules: ["controls_repeat", "wait_seconds"],
+    modules: ["controls_repeat"]
   },
 
   cat_math: {
     name: "Math",
     colour: "%{BKY_MATH_HUE}",
-    modules: [
-      "math_number",
-      "math_arithmetic",
-      "math_random_float"
-    ]
+    modules: ["math_number", "math_arithmetic", "math_random_float"]
   },
 
   cat_sep: {
@@ -46,9 +38,6 @@ export const Categories = {
   cat_list: {
     name: "List",
     colour: 50,
-    modules: [
-        "lists_create_empty",
-        "lists_create_with"
-    ]
+    modules: ["lists_create_empty", "lists_create_with"]
   }
 };
