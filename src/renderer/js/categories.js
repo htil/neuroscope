@@ -2,7 +2,7 @@ export const Categories = {
   cat_logic: {
     name: "Logic",
     colour: "%{BKY_LOGIC_HUE}",
-    modules: ["controls_if", "controls_ifelse", "logic_compare"]
+    modules: ["controls_if", "controls_ifelse", "logic_compare", "wait_seconds"]
   },
 
   cat_loops: {
@@ -24,8 +24,7 @@ export const Categories = {
   cat_data: {
     name: "Data",
     colour: 330,
-    custom: "DATA",
-    modules: ["plot_raw", "getRaw"]
+    modules: ["delta", "theta", "alpha", "beta", "gamma", "print"]
   },
 
   cat_vars: {

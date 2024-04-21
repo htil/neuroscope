@@ -37,6 +37,26 @@ export const BlocklyMain = class {
     return res;
   };
 
+  download() {
+    //let filename = prompt();
+    let filename = "test";
+    filename = `${filename}.xml`;
+
+    let as_dom = Blockly.Xml.workspaceToDom(this.workspace);
+    let as_text = Blockly.Xml.domToText(as_dom);
+
+    var element = document.createElement("a");
+    element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(as_text));
+    element.setAttribute("download", filename);
+
+    element.style.display = "none";
+    document.body.appendChild(element);
+
+    element.click();
+
+    document.body.removeChild(element);
+  }
+
   resetInterpreter = () => {
     this.interpreter = null;
     this.workspace.highlightBlock(null);
@@ -56,7 +76,7 @@ export const BlocklyMain = class {
     this.interpreter = new Interpreter(this.latestCode, interpreterApi.init.bind(interpreterApi));
 
     this.runner = function () {
-      console.log(this.interpreter);
+      //console.log(this.interpreter);
 
       // If no interpreter do not run
       if (!this.interpreter) return;
@@ -66,9 +86,7 @@ export const BlocklyMain = class {
       // If the interpreter is still running keep going
       if (hasMore) {
         setTimeout(this.runner.bind(this), 1);
-        console.log("step");
       } else {
-        console.log("done");
         this.resetInterpreter();
       }
     };
@@ -84,7 +102,7 @@ export const BlocklyMain = class {
     javascriptGenerator.STATEMENT_PREFIX = "highlightBlock(%1);\n";
     javascriptGenerator.addReservedWords("highlightBlock");
     this.setLatestCode(javascriptGenerator.workspaceToCode(this.workspace));
-    console.log(this.latestCode);
+    //console.log(this.latestCode);
   };
 
   runCode = () => {
@@ -104,6 +122,10 @@ export const BlocklyMain = class {
     this.latestCode = code;
   };
 
+  stop = () => {
+    this.resetInterpreter();
+  };
+
   start = () => {
     this.generateLatestCode();
 
@@ -115,7 +137,5 @@ export const BlocklyMain = class {
     };
 
     this.workspace.addChangeListener(eventListener);
-
-    //setTimeout(this.executeCode, 2000);
   };
 };

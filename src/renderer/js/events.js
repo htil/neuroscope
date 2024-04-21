@@ -1,15 +1,33 @@
-import { SessionLineGraph } from "./session.js";
-import { BlocklyMain } from "./blockly-main.js";
+//import { SessionLineGraph } from "./session.js";
+//import { BlocklyMain } from "./blockly-main.js";
+import * as Blockly from "blockly/core";
 
 export const Events = class {
   constructor(blockly) {
-    //this.device = device
-    //this.ble = ble
     this.blockly = blockly;
     this.session_graph = {};
 
     /* Blockly Events */
     this.create_event("run", this.execute_code.bind(this));
+    this.create_event("saveFile", this.download_code.bind(this));
+    this.load_input = this.eById("file_handler");
+
+    let handleOnChangeUpload = (e) => {
+      let file = e.target.files[0];
+      if (!file) {
+        return;
+      }
+      this.loadProject(file);
+    };
+
+    this.load_input.onchange = handleOnChangeUpload.bind(this);
+
+    this.create_event("uploadFile", () => {
+      console.log("upload");
+      this.load_input.click();
+    });
+
+    this.create_event("stopButton", this.stop_program.bind(this));
 
     // Local store
     //this.create_event("start_local_store", this.start_local_store.bind(this));
@@ -19,13 +37,42 @@ export const Events = class {
     //this.create_event("drone_land", this.drone_land.bind(this));
   }
 
+  eById = (id) => {
+    let res = document.getElementById(id);
+    if (res == null) throw new Error("Could not find element with ID: " + id);
+    return res;
+  };
+
   create_event(id, _func) {
     document.getElementById(id).onclick = _func;
+  }
+
+  loadProject(file) {
+    this.blockly.workspace.clear();
+    this.blockly.workspace.clearUndo();
+
+    let reader = new FileReader();
+
+    reader.onload = (e) => {
+      let contents = e.target.result.toString();
+      let as_xml = Blockly.utils.xml.textToDom(contents);
+      Blockly.Xml.domToWorkspace(as_xml, this.blockly.workspace);
+    };
+
+    reader.readAsText(file);
+  }
+
+  stop_program() {
+    this.blockly.stop();
   }
 
   /* Blockly Events */
   execute_code() {
     this.blockly.runCode();
+  }
+
+  download_code() {
+    this.blockly.download();
   }
 
   /* Drone events */
@@ -47,25 +94,4 @@ export const Events = class {
     console.log("land");
     window.electronAPI.manualControl("land");
   }
-
-  /*
-    start_local_store() {
-        this.device.toggle_local_recording()
-        if(this.device.is_local_recording) {
-            document.querySelector(`#start_local_store`).innerHTML = "Stop Recording"
-            document.querySelector(`#status`).innerHTML = "recording"
-            document.querySelector(`#graph`).style.display = "block"
-            document.querySelector(`#session_graph`).style.display = "none"
-            this.device.data.clear_data()
-        } else {
-            document.querySelector(`#start_local_store`).innerHTML = "Start Recording"
-            document.querySelector(`#status`).innerHTML = ""
-            document.querySelector(`#graph`).style.display = "none"
-            document.querySelector(`#session_graph`).style.display = "block"
-            
-            let data = this.device.data.get_data()
-            document.querySelector(`#session_graph`).innerHTML = ""
-            this.session_graph = new SessionLineGraph(data, window.innerWidth,  window.innerWidth * 0.6, "session_graph")
-        }
-    }*/
 };

@@ -5,10 +5,17 @@ export const InterpreterAPI = class {
     this.wrapperFunctions = new WrapperFunctions(workspace);
     this.nativeFunctions = {
       highlightBlock: this.wrapperFunctions.highlightWrapper,
-      prompt: this.wrapperFunctions.promptWrapper
+      prompt: this.wrapperFunctions.promptWrapper,
+      getDelta: this.wrapperFunctions.getDelta,
+      getTheta: this.wrapperFunctions.getTheta,
+      getAlpha: this.wrapperFunctions.getAlpha,
+      getBeta: this.wrapperFunctions.getBeta,
+      getGamma: this.wrapperFunctions.getGamma,
+      blockly_print: this.wrapperFunctions.blockly_print
     };
     this.asyncFunctions = {
-      filterSignal: this.wrapperFunctions.filterSignalWrapper
+      filterSignal: this.wrapperFunctions.filterSignalWrapper,
+      wait_seconds: this.wrapperFunctions.wait_seconds
     };
   }
 

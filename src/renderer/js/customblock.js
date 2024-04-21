@@ -43,20 +43,165 @@ export const createCustomBlocks = function () {
     return [code, Order.None];
   };
 
-  /*
-  Blockly.JavaScript["filter_signal"] = function (block) {
-    var text_low = block.getFieldValue("low");
-    var text_high = block.getFieldValue("high");
-    var value_signal = Blockly.JavaScript.valueToCode(
-      block,
-      "signal",
-      Blockly.JavaScript.ORDER_ATOMIC
-    );
-    //console.log(text_low, text_high, value_signal)
-    // TODO: Assemble JavaScript into code variable.
-    var code = `filterSignal(${value_signal}, ${text_low}, ${text_high})`;
-    // TODO: Change ORDER_NONE to the correct strength.
-    return [code, Blockly.JavaScript.ORDER_NONE];
+  ///////// Delta
+
+  var getDeltaPower = {
+    type: "delta",
+    message0: "delta",
+    output: null,
+    colour: 330,
+    tooltip: "",
+    helpUrl: ""
   };
-  */
+
+  Blockly.Blocks["delta"] = {
+    init: function () {
+      this.jsonInit(getDeltaPower);
+    }
+  };
+
+  javascriptGenerator.forBlock["delta"] = function (block, generator) {
+    var code = "getDelta()";
+    return [code, Order.FUNCTION_CALL];
+  };
+
+  ///////// Theta
+
+  var getThetaPower = {
+    type: "theta",
+    message0: "theta",
+    output: null,
+    colour: 330,
+    tooltip: "",
+    helpUrl: ""
+  };
+
+  Blockly.Blocks["theta"] = {
+    init: function () {
+      this.jsonInit(getThetaPower);
+    }
+  };
+
+  javascriptGenerator.forBlock["theta"] = function (block, generator) {
+    var code = "getTheta()";
+    return [code, Order.FUNCTION_CALL];
+  };
+
+  ///////// Alpha
+
+  var getAlphaPower = {
+    type: "alpha",
+    message0: "alpha",
+    output: null,
+    colour: 330,
+    tooltip: "",
+    helpUrl: ""
+  };
+
+  Blockly.Blocks["alpha"] = {
+    init: function () {
+      this.jsonInit(getAlphaPower);
+    }
+  };
+
+  javascriptGenerator.forBlock["alpha"] = function (block, generator) {
+    var code = "getAlpha()";
+    return [code, Order.FUNCTION_CALL];
+  };
+
+  ///////// Beta
+
+  var getBetaPower = {
+    type: "beta",
+    message0: "beta",
+    output: null,
+    colour: 330,
+    tooltip: "",
+    helpUrl: ""
+  };
+
+  Blockly.Blocks["beta"] = {
+    init: function () {
+      this.jsonInit(getBetaPower);
+    }
+  };
+
+  javascriptGenerator.forBlock["beta"] = function (block, generator) {
+    var code = "getBeta()";
+    return [code, Order.FUNCTION_CALL];
+  };
+
+  ///////// Gamma
+
+  var getGammaPower = {
+    type: "gamma",
+    message0: "gamma",
+    output: null,
+    colour: 330,
+    tooltip: "",
+    helpUrl: ""
+  };
+
+  Blockly.Blocks["gamma"] = {
+    init: function () {
+      this.jsonInit(getGammaPower);
+    }
+  };
+
+  javascriptGenerator.forBlock["gamma"] = function (block, generator) {
+    var code = "getGamma()";
+    return [code, Order.FUNCTION_CALL];
+  };
+
+  /////////
+  var blockly_print = {
+    message0: "print %1",
+    args0: [{ type: "input_value", name: "val", check: "Number" }],
+    previousStatement: null,
+    nextStatement: null,
+    colour: 330
+  };
+
+  Blockly.Blocks["print"] = {
+    init: function () {
+      this.jsonInit(blockly_print);
+    }
+  };
+
+  javascriptGenerator.forBlock["print"] = function (block) {
+    var text = javascriptGenerator.valueToCode(block, "val", Order.ATOMIC);
+    var code = `blockly_print(${text});\n`;
+    return code;
+  };
+};
+
+///
+
+var wait_block = {
+  type: "wait_seconds",
+  message0: " wait %1 seconds",
+  args0: [
+    {
+      type: "field_number",
+      name: "SECONDS",
+      min: 0,
+      max: 600,
+      value: 1
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: "%{BKY_LOGIC_HUE}"
+};
+
+Blockly.Blocks["wait_seconds"] = {
+  init: function () {
+    this.jsonInit(wait_block);
+  }
+};
+
+javascriptGenerator.forBlock["wait_seconds"] = function (block) {
+  var seconds = Number(block.getFieldValue("SECONDS"));
+  var code = "wait_seconds(" + seconds + ");\n";
+  return code;
 };

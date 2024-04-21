@@ -9,21 +9,46 @@ export const WrapperFunctions = class {
   async filterSignalWrapper(list, callback) {
     try {
       let arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 3, 4, 5, 6, 7, 2, 2, 4, 5];
-      //let filteredData = await blocklyHooks.filterSignalHook(arr, low, high);
-      //let filteredData = await filterSignal(arr, low, high);
       callback(arr);
     } catch (error) {
       return error;
     }
   }
 
+  async wait_seconds(timeInSeconds, callback) {
+    setTimeout(callback, timeInSeconds * 1000);
+  }
+
   highlightWrapper(id) {
-    console.log("highlighting block");
     id = String(id || "");
     return this.workspace.highlightBlock(id);
   }
 
   promptWrapper(text) {
     return window.prompt(text);
+  }
+
+  blockly_print(text) {
+    console.log(text);
+  }
+
+  getDelta() {
+    return window.band_powers.delta;
+  }
+
+  getTheta() {
+    return window.band_powers.theta;
+  }
+
+  getAlpha() {
+    return window.band_powers.alpha;
+  }
+
+  getBeta() {
+    return window.band_powers.beta;
+  }
+
+  getGamma() {
+    return window.band_powers.gamma;
   }
 };
