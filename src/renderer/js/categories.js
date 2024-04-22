@@ -27,6 +27,12 @@ export const Categories = {
     modules: ["delta", "theta", "alpha", "beta", "gamma", "print"]
   },
 
+  cat_drone: {
+    name: "Drone",
+    colour: 200,
+    modules: ["drone_up", "takeoff", "land"]
+  },
+
   cat_vars: {
     name: "Variables",
     colour: 100,

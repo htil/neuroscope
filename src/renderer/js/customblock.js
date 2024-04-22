@@ -205,3 +205,72 @@ javascriptGenerator.forBlock["wait_seconds"] = function (block) {
   var code = "wait_seconds(" + seconds + ");\n";
   return code;
 };
+
+//////
+/* pan() */
+var droneUp = {
+  type: "drone_up",
+  message0: "up %1 cm",
+  args0: [{ type: "input_value", name: "value", check: "Number" }],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 355
+};
+
+Blockly.Blocks["drone_up"] = {
+  init: function () {
+    this.jsonInit(droneUp);
+  }
+};
+
+javascriptGenerator.forBlock["drone_up"] = function (block, generator) {
+  var value = generator.valueToCode(block, "value", Order.NONE);
+  //angle = angle > 1.5 ? 1.5 : angle;
+  //angle = angle < -1.5 ? -1.5 : angle;
+  //code = `pan(${angle})`;
+  var code = `drone_up(${value});\n`;
+  return code;
+};
+
+//////
+/* takeoff() */
+var takeoff = {
+  type: "takeoff",
+  message0: "takeoff",
+  args0: [],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 355
+};
+
+Blockly.Blocks["takeoff"] = {
+  init: function () {
+    this.jsonInit(takeoff);
+  }
+};
+
+javascriptGenerator.forBlock["takeoff"] = function (block, generator) {
+  var code = `takeoff();\n`;
+  return code;
+};
+
+/* land() */
+var land = {
+  type: "land",
+  message0: "land",
+  args0: [],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 355
+};
+
+Blockly.Blocks["land"] = {
+  init: function () {
+    this.jsonInit(land);
+  }
+};
+
+javascriptGenerator.forBlock["land"] = function (block, generator) {
+  var code = `land();\n`;
+  return code;
+};

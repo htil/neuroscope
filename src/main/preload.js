@@ -21,6 +21,7 @@ process.once("loaded", () => {
   contextBridge.exposeInMainWorld("electronAPI", {
     manualControl: (command) => ipcRenderer.send("manual-control", command),
     controlSignal: (response) => ipcRenderer.send("control-signal", response),
+    droneUp: (response) => ipcRenderer.send("drone-up", response),
     cancelBluetoothRequest: (callback) => ipcRenderer.send("cancel-bluetooth-request", callback),
     bluetoothPairingRequest: (callback) => ipcRenderer.on("bluetooth-pairing-request", callback),
     bluetoothPairingResponse: (response) => ipcRenderer.send("bluetooth-pairing-response", response)

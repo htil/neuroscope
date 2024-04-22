@@ -24,10 +24,6 @@ export const WrapperFunctions = class {
     return this.workspace.highlightBlock(id);
   }
 
-  promptWrapper(text) {
-    return window.prompt(text);
-  }
-
   blockly_print(text) {
     console.log(text);
   }
@@ -50,5 +46,19 @@ export const WrapperFunctions = class {
 
   getGamma() {
     return window.band_powers.gamma;
+  }
+
+  drone_up(value) {
+    console.log("drone up");
+    //window.electronAPI.manualControl("up");
+    window.electronAPI.droneUp(value);
+  }
+
+  takeoff() {
+    window.electronAPI.manualControl("takeoff");
+  }
+
+  land() {
+    window.electronAPI.manualControl("land");
   }
 };

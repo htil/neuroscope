@@ -102,6 +102,15 @@ async function createWindow() {
     }
   });
 
+  ipcMain.on("drone-up", (event, response) => {
+    let maxSpeed = 40;
+    let minSpeed = 15;
+    let recent_val = parseInt(response);
+    let upVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
+    console.log("drone up", upVal, "sent", response);
+    tello.up(upVal);
+  });
+
   let isUp = false;
 
   ipcMain.on("manual-control", (event, response) => {

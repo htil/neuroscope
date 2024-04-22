@@ -9,7 +9,7 @@ import Interpreter from "js-interpreter";
 import { InterpreterAPI } from "./interpreter-api.js";
 
 Blockly.setLocale(locale);
-let { cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_vars, cat_list } = Categories;
+let { cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_drone } = Categories;
 
 export const BlocklyMain = class {
   constructor() {
@@ -18,7 +18,7 @@ export const BlocklyMain = class {
     this.runner = null; // may need to use window here
     this.latestCode = "";
 
-    let _toolbox = new Toolbox([cat_logic, cat_loops, cat_math, cat_sep, cat_data]);
+    let _toolbox = new Toolbox([cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_drone]);
 
     this.workspace = Blockly.inject("blocklyDiv", {
       toolbox: _toolbox.toString()
