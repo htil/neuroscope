@@ -10,6 +10,8 @@ const menu = require("./menu");
 const port = 3000; // Hardcoded; needs to match webpack.development.js and package.json
 const selfHost = `http://localhost:${port}`;
 const MUSE_DEVICE_NAME = "Muse-98A9";
+const maxSpeed = 40;
+const minSpeed = 15;
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -103,12 +105,17 @@ async function createWindow() {
   });
 
   ipcMain.on("drone-up", (event, response) => {
-    let maxSpeed = 40;
-    let minSpeed = 15;
     let recent_val = parseInt(response);
     let upVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     console.log("drone up", upVal, "sent", response);
     tello.up(upVal);
+  });
+
+  ipcMain.on("drone-down", (event, response) => {
+    let recent_val = parseInt(response);
+    let downVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
+    console.log("drone down", downVal, "sent", response);
+    tello.down(downVal);
   });
 
   let isUp = false;

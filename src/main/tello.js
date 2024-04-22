@@ -8,10 +8,21 @@ class Tello {
     this.host = "192.168.10.1";
     this.server = dgram.createSocket("udp4");
     this.state_info = dgram.createSocket("udp4");
-    this.state_info.bind(this.state_port);
+    //this.state_info.bind(this.state_port);
     this.server.bind(9000);
     this.server.on("message", this._on_message);
-    this.state_info.on("message", this._on_state);
+    //this.state_info.on("message", this._on_state);
+    this.state_info.on("message", (message, remote) => {
+      // remote: { address: '192.168.10.1', family: 'IPv4', port: 8889, size: 127 }
+      // message: <Buffer 70 69 74 63 68 ... >
+      const readableMessage = message.toString();
+      this.state = {};
+      for (const e of readableMessage.slice(0, -1).split(";")) {
+        this.state[e.split(":")[0]] = e.split(":")[1];
+      }
+      //console.log(this.state);
+    });
+    this.state_info.bind(8890, "0.0.0.0");
   }
 
   _on_state(msg, info) {
@@ -35,6 +46,10 @@ class Tello {
     console.log("takeoff");
     this.send_message("command");
     this.send_message("takeoff");
+  }
+
+  state() {
+    return this.state;
   }
 
   land() {

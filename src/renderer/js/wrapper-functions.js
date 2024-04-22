@@ -50,8 +50,12 @@ export const WrapperFunctions = class {
 
   drone_up(value) {
     console.log("drone up");
-    //window.electronAPI.manualControl("up");
     window.electronAPI.droneUp(value);
+  }
+
+  drone_down(value) {
+    console.log("drone down");
+    window.electronAPI.droneDown(value);
   }
 
   takeoff() {

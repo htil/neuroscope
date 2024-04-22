@@ -12,6 +12,7 @@ export const InterpreterAPI = class {
       getGamma: this.wrapperFunctions.getGamma,
       blockly_print: this.wrapperFunctions.blockly_print,
       drone_up: this.wrapperFunctions.drone_up,
+      drone_down: this.wrapperFunctions.drone_down,
       takeoff: this.wrapperFunctions.takeoff,
       land: this.wrapperFunctions.land
     };

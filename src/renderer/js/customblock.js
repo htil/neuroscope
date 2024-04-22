@@ -225,10 +225,31 @@ Blockly.Blocks["drone_up"] = {
 
 javascriptGenerator.forBlock["drone_up"] = function (block, generator) {
   var value = generator.valueToCode(block, "value", Order.NONE);
-  //angle = angle > 1.5 ? 1.5 : angle;
-  //angle = angle < -1.5 ? -1.5 : angle;
-  //code = `pan(${angle})`;
   var code = `drone_up(${value});\n`;
+  return code;
+};
+
+//////////
+
+/* droneUp() */
+var droneDown = {
+  type: "drone_down",
+  message0: "down %1 cm",
+  args0: [{ type: "input_value", name: "value", check: "Number" }],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 355
+};
+
+Blockly.Blocks["drone_down"] = {
+  init: function () {
+    this.jsonInit(droneDown);
+  }
+};
+
+javascriptGenerator.forBlock["drone_down"] = function (block, generator) {
+  var value = generator.valueToCode(block, "value", Order.NONE);
+  var code = `drone_down(${value});\n`;
   return code;
 };
 
