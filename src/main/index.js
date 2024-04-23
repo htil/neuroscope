@@ -112,6 +112,12 @@ async function createWindow() {
     }
   });
 
+  setInterval(() => {
+    //console.log(tello.getState());
+    let drone_state = tello.getState();
+    win.webContents.send("drone_state", drone_state);
+  }, 5000);
+
   ipcMain.on("select-ble-device", (event, selected_ble_device) => {
     console.log("device selected: ", selected_ble_device);
     if (bleCallback) {

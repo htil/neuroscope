@@ -11,12 +11,13 @@ class Tello {
     //this.state_info.bind(this.state_port);
     this.server.bind(9000);
     this.server.on("message", this._on_message);
+    this.state = {};
     //this.state_info.on("message", this._on_state);
     this.state_info.on("message", (message, remote) => {
       // remote: { address: '192.168.10.1', family: 'IPv4', port: 8889, size: 127 }
       // message: <Buffer 70 69 74 63 68 ... >
       const readableMessage = message.toString();
-      this.state = {};
+
       for (const e of readableMessage.slice(0, -1).split(";")) {
         this.state[e.split(":")[0]] = e.split(":")[1];
       }
@@ -48,7 +49,7 @@ class Tello {
     this.send_message("takeoff");
   }
 
-  state() {
+  getState() {
     return this.state;
   }
 
@@ -62,6 +63,7 @@ class Tello {
 const tello = new Tello();
 module.exports.takeoff = () => tello.takeoff();
 module.exports.land = () => tello.land();
+module.exports.getState = () => tello.getState();
 module.exports.up = (value) => tello.send_message("up " + value);
 module.exports.down = (value) => tello.send_message("down " + value);
 console.log("Tello");

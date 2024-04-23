@@ -16,7 +16,7 @@
   <body>
     <div
       class="ui two column doubling stackable grid"
-      style="margin: 0px !important; width: 100%; height: 100%"
+      style="margin: 0px !important; width: 100%; height: 100vh"
     >
       <div class="column" style="background-color: #f2f2f2; width: 45%">
         <div
@@ -92,8 +92,18 @@
         </button>
       </div>
 
+      <div style="position: absolute; right: 5px; top: 320px; z-index: 100">
+        <button
+          id="battery"
+          class="huge circular ui green icon button"
+          style="display: inherit; margin-left: auto"
+        >
+          0%
+        </button>
+      </div>
+
       <!-- File Upload-->
-      <input type="file" id="file_handler" style="visibility: hidden" />
+      <input type="file" id="file_handler" style="display: none" />
     </div>
 
     <div id="ble-modal" class="ui modal">
@@ -109,24 +119,7 @@
           display: flex;
           flex-direction: column;
         "
-      >
-        <!--
-        <div class="item" style="display: flex; justify-content: center">
-          <div
-            style="
-              flex-direction: row;
-              display: flex;
-              justify-content: space-between;
-              width: 400px;
-            "
-          >
-            <h1>Apples</h1>
-            <div>
-              <button data="apples" class="ui primary button">Connect</button>
-            </div>
-          </div>
-        </div>
-      --></div>
+      ></div>
     </div>
 
     <!--<h1>NeuroScope</h1>-->

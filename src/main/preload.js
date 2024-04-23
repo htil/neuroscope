@@ -24,6 +24,7 @@ process.once("loaded", () => {
     droneUp: (response) => ipcRenderer.send("drone-up", response),
     droneDown: (response) => ipcRenderer.send("drone-down", response),
     getBLEList: (callback) => ipcRenderer.on("device_list", callback),
+    getDroneState: (callback) => ipcRenderer.on("drone_state", callback),
     selectBluetoothDevice: (deviceID) => ipcRenderer.send("select-ble-device", deviceID),
     cancelBluetoothRequest: (callback) => ipcRenderer.send("cancel-bluetooth-request", callback),
     bluetoothPairingRequest: (callback) => ipcRenderer.on("bluetooth-pairing-request", callback),

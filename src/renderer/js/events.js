@@ -30,6 +30,11 @@ export const Events = class {
 
     this.create_event("stopButton", this.stop_program.bind(this));
 
+    window.electronAPI.getDroneState((event, drone_state) => {
+      console.log(drone_state);
+      document.getElementById("battery").innerHTML = drone_state.bat + "%";
+    });
+
     // Local store
     //this.create_event("start_local_store", this.start_local_store.bind(this));
     //this.create_event("drone_takeoff", this.takeoff_drone.bind(this));
