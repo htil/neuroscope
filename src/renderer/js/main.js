@@ -24,6 +24,9 @@ export const NeuroScope = class {
     this.ble = new BLE(this.signal_handler.add_data.bind(this.signal_handler));
     this.feature_extractor = new FeatureExtractor(256);
     this.blocklyMain.start();
+    setTimeout(() => {
+      //this.ble.build_ble_modal_list(["device1", "device2"]);
+    }, 3000);
 
     setInterval(() => {
       this.signal_handler.plot_data(0);

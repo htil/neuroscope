@@ -8,6 +8,7 @@ export const Events = class {
     this.session_graph = {};
 
     /* Blockly Events */
+
     this.create_event("run", this.execute_code.bind(this));
     this.create_event("saveFile", this.download_code.bind(this));
     this.load_input = this.eById("file_handler");

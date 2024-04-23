@@ -12,6 +12,7 @@ const selfHost = `http://localhost:${port}`;
 const MUSE_DEVICE_NAME = "Muse-98A9";
 const maxSpeed = 40;
 const minSpeed = 15;
+let bleCallback = null;
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -80,16 +81,23 @@ async function createWindow() {
   /* Code to integrate BLE and Tello Drone */
 
   win.webContents.on("select-bluetooth-device", (event, deviceList, callback) => {
+    bleCallback = callback;
     event.preventDefault();
-    console.log(deviceList);
+    //console.log(deviceList);
+    win.webContents.send("device_list", deviceList);
+    /*
     deviceList.map((x) => {
       console.log(x.deviceName);
     });
+    */
+    let result = null;
     //selectBluetoothCallback = callback
 
+    /*
     const result = deviceList.find((device) => {
       return device.deviceName === MUSE_DEVICE_NAME;
     });
+    */
 
     //console.log(MuseClient)
 
@@ -101,6 +109,13 @@ async function createWindow() {
     } else {
       // The device wasn't found so we need to either wait longer (eg until the
       // device is turned on) or until the user cancels the request
+    }
+  });
+
+  ipcMain.on("select-ble-device", (event, selected_ble_device) => {
+    console.log("device selected: ", selected_ble_device);
+    if (bleCallback) {
+      bleCallback(selected_ble_device);
     }
   });
 
