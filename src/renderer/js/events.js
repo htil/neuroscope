@@ -32,7 +32,9 @@ export const Events = class {
 
     window.electronAPI.getDroneState((event, drone_state) => {
       console.log(drone_state);
-      document.getElementById("battery").innerHTML = drone_state.bat + "%";
+      if (drone_state.bat) {
+        document.getElementById("battery").innerHTML = drone_state.bat + "%";
+      }
     });
 
     // Local store
