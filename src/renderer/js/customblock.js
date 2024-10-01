@@ -207,7 +207,7 @@ javascriptGenerator.forBlock["wait_seconds"] = function (block) {
 };
 
 //////
-/* pan() */
+/* droneUp() */
 var droneUp = {
   type: "drone_up",
   message0: "up %1 cm",
@@ -231,7 +231,7 @@ javascriptGenerator.forBlock["drone_up"] = function (block, generator) {
 
 //////////
 
-/* droneUp() */
+/* droneDown() */
 var droneDown = {
   type: "drone_down",
   message0: "down %1 cm",
@@ -250,6 +250,98 @@ Blockly.Blocks["drone_down"] = {
 javascriptGenerator.forBlock["drone_down"] = function (block, generator) {
   var value = generator.valueToCode(block, "value", Order.NONE);
   var code = `drone_down(${value});\n`;
+  return code;
+};
+
+//////////
+/* droneForward() */
+var droneForward = {
+  type: "drone_forward",
+  message0: "forward %1 cm",
+  args0: [{ type: "input_value", name: "value", check: "Number" }],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 355
+};
+
+Blockly.Blocks["drone_forward"] = {
+  init: function () {
+    this.jsonInit(droneForward);
+  }
+};
+
+javascriptGenerator.forBlock["drone_forward"] = function (block, generator) {
+  var value = generator.valueToCode(block, "value", Order.NONE);
+  var code = `drone_forward(${value});\n`;
+  return code;
+};
+
+//////////
+/* droneBack() */
+var droneBack = {
+  type: "drone_back",
+  message0: "back %1 cm",
+  args0: [{ type: "input_value", name: "value", check: "Number" }],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 355
+};
+
+Blockly.Blocks["drone_back"] = {
+  init: function () {
+    this.jsonInit(droneBack);
+  }
+};
+
+javascriptGenerator.forBlock["drone_back"] = function (block, generator) {
+  var value = generator.valueToCode(block, "value", Order.NONE);
+  var code = `drone_back(${value});\n`;
+  return code;
+};
+
+//////////
+/* ccw() */
+var ccw = {
+  type: "ccw",
+  message0: "rotate counter-clockwise %1 cm",
+  args0: [{ type: "input_value", name: "value", check: "Number" }],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 355
+};
+
+Blockly.Blocks["ccw"] = {
+  init: function () {
+    this.jsonInit(ccw);
+  }
+};
+
+javascriptGenerator.forBlock["ccw"] = function (block, generator) {
+  var value = generator.valueToCode(block, "value", Order.NONE);
+  var code = `ccw(${value});\n`;
+  return code;
+};
+
+//////////
+/* cw() */
+var cw = {
+  type: "cw",
+  message0: "rotate clockwise %1 cm",
+  args0: [{ type: "input_value", name: "value", check: "Number" }],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 355
+};
+
+Blockly.Blocks["cw"] = {
+  init: function () {
+    this.jsonInit(cw);
+  }
+};
+
+javascriptGenerator.forBlock["cw"] = function (block, generator) {
+  var value = generator.valueToCode(block, "value", Order.NONE);
+  var code = `cw(${value});\n`;
   return code;
 };
 
