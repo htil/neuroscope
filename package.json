@@ -1,7 +1,7 @@
 {
   "name": "electron-vuejs-parcel",
-  "description": "Neuroblock 3",
-  "version": "3.0.0",
+  "description": "Neuroblock",
+  "version": "1.3.0",
   "author": {
     "name": "Human Technology Interaction Lab"
   },
@@ -70,6 +70,9 @@
       "icon": "src/renderer/icons/icon.icns",
       "category": "public.app-category.productivity",
       "identity": null
+    },
+    "win": {
+            "icon": "src/renderer/icons/icon.png"
     },
     "dmg": {
       "contents": [
