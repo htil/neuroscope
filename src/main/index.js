@@ -154,7 +154,7 @@ async function createWindow() {
     let recent_val = parseInt(response);
     let upVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     console.log("drone up", upVal, "sent", response);
-    const moveCommand = { action: "move", heading: 0, speed: upVal, duration: 1 };
+    const moveCommand = { action: "move", heading: 90, speed: upVal, duration: 3 };
     sendCommand(moveCommand);
   });
 
@@ -162,7 +162,7 @@ async function createWindow() {
     let recent_val = parseInt(response);
     let downVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     console.log("drone down", downVal, "sent", response);
-    const moveCommand = { action: "move", heading: 180, speed: downVal, duration: 1 };
+    const moveCommand = { action: "move", heading: 270, speed: downVal, duration: 3 };
     sendCommand(moveCommand);
   });
 
@@ -170,15 +170,19 @@ async function createWindow() {
     let recent_val = parseInt(response);
     let forwardVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     console.log("drone forward", forwardVal, "sent", response);
-    const moveCommand = { action: "move", heading: 90, speed: forwardVal, duration: 1 };
+    const moveCommand = { action: "move", heading: 0, speed: forwardVal, duration: 1 };
     sendCommand(moveCommand);
   });
 
   ipcMain.on("drone-back", (event, response) => {
     let recent_val = parseInt(response);
-    let val = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-    console.log("drone back", val, "sent", response);
-    tello.back(val);
+    let backVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
+    console.log("drone back", backVal, "sent", response);
+    // let val = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
+    // console.log("drone back", val, "sent", response);
+    const moveCommand = { action: "move", heading: 180, speed: backVal, duration: 1 };
+    sendCommand(moveCommand);
+    // tello.back(val);
   });
 
   ipcMain.on("cw", (event, response) => {
