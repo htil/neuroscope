@@ -212,7 +212,7 @@ javascriptGenerator.forBlock["wait_seconds"] = function (block) {
 /* droneUp() */
 var droneUp = {
   type: "drone_up",
-  message0: "up %1 cm",
+  message0: "Right %1 cm",
   args0: [{ type: "input_value", name: "value", check: "Number" }],
   previousStatement: null,
   nextStatement: null,
@@ -236,7 +236,7 @@ javascriptGenerator.forBlock["drone_up"] = function (block, generator) {
 /* droneDown() */
 var droneDown = {
   type: "drone_down",
-  message0: "down %1 cm",
+  message0: "Left %1 cm",
   args0: [{ type: "input_value", name: "value", check: "Number" }],
   previousStatement: null,
   nextStatement: null,

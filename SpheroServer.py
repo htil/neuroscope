@@ -43,7 +43,7 @@ async def handle_command(droid, command):
         print(f"Error handling command {command}: {e}")
         raise e  # Propagate the exception for better debugging
 
-async def handle_connection(websocket, path):
+async def handle_connection(websocket):
     print("Client connected")
     toy = await find_toy()  # Find the Sphero BOLT asynchronously
     if not toy:

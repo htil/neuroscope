@@ -152,16 +152,16 @@ async function createWindow() {
 
   ipcMain.on("drone-up", (event, response) => {
     let recent_val = parseInt(response);
-    let upVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-    console.log("drone up", upVal, "sent", response);
-    const moveCommand = { action: "move", heading: 90, speed: upVal, duration: 3 };
+    let rightVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
+    console.log("Sphero right", rightVal, "sent", response);
+    const moveCommand = { action: "move", heading: 90, speed: rightVal, duration: 3 };
     sendCommand(moveCommand);
   });
 
   ipcMain.on("drone-down", (event, response) => {
     let recent_val = parseInt(response);
     let downVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-    console.log("drone down", downVal, "sent", response);
+    console.log("Sphero Left", downVal, "sent", response);
     const moveCommand = { action: "move", heading: 270, speed: downVal, duration: 3 };
     sendCommand(moveCommand);
   });
