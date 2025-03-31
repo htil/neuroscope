@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
 const tello = require("./tello.js");
+const WebSocket = require('ws');
 
 const isProduction =
   process.env.NODE_ENV === "production" || !process || !process.env || !process.env.NODE_ENV;
@@ -56,7 +57,7 @@ async function createWindow() {
     // Reload
     try {
       require("electron-reloader")(module);
-    } catch (_) {}
+    } catch (_) { }
     // Errors are thrown if the dev tools are opened
     // before the DOM is ready
     win.webContents.once("dom-ready", async () => {
@@ -125,33 +126,63 @@ async function createWindow() {
     }
   });
 
+  const ws = new WebSocket('ws://localhost:8765');
+
+  ws.on('open', function open() {
+    console.log('WebSocket connection opened');
+  });
+
+  ws.on('error', function error(err) {
+    console.error('WebSocket error:', err);
+  });
+
+  let lastCommandTime = 0;
+  const commandInterval = 3000; // 3 seconds
+
+  function sendCommand(command) {
+    const currentTime = Date.now();
+    if (currentTime - lastCommandTime >= commandInterval) {
+      ws.send(JSON.stringify(command));
+      console.log("Command sent:", command);
+      lastCommandTime = currentTime;
+    } else {
+      console.log("Command skipped to avoid spamming:", command);
+    }
+  }
+
   ipcMain.on("drone-up", (event, response) => {
     let recent_val = parseInt(response);
-    let upVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-    console.log("drone up", upVal, "sent", response);
-    tello.up(upVal);
+    let rightVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
+    console.log("Sphero right", rightVal, "sent", response);
+    const moveCommand = { action: "move", heading: 90, speed: rightVal, duration: 3 };
+    sendCommand(moveCommand);
   });
 
   ipcMain.on("drone-down", (event, response) => {
     let recent_val = parseInt(response);
     let downVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-    console.log("drone down", downVal, "sent", response);
-    tello.down(downVal);
+    console.log("Sphero Left", downVal, "sent", response);
+    const moveCommand = { action: "move", heading: 270, speed: downVal, duration: 3 };
+    sendCommand(moveCommand);
   });
 
   ipcMain.on("drone-forward", (event, response) => {
     let recent_val = parseInt(response);
-    _maxSpeed = 80;
-    let val = recent_val > _maxSpeed ? _maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-    console.log("drone forward", val, "sent", response);
-    tello.forward(val);
+    let forwardVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
+    console.log("drone forward", forwardVal, "sent", response);
+    const moveCommand = { action: "move", heading: 0, speed: forwardVal, duration: 1 };
+    sendCommand(moveCommand);
   });
 
   ipcMain.on("drone-back", (event, response) => {
     let recent_val = parseInt(response);
-    let val = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-    console.log("drone back", val, "sent", response);
-    tello.back(val);
+    let backVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
+    console.log("drone back", backVal, "sent", response);
+    // let val = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
+    // console.log("drone back", val, "sent", response);
+    const moveCommand = { action: "move", heading: 180, speed: backVal, duration: 1 };
+    sendCommand(moveCommand);
+    // tello.back(val);
   });
 
   ipcMain.on("cw", (event, response) => {
