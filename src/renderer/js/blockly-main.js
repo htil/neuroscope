@@ -18,10 +18,24 @@ export const BlocklyMain = class {
     this.runner = null; // may need to use window here
     this.latestCode = "";
 
-    let _toolbox = new Toolbox([cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_drone]);
+    let cat_robot = {
+      name: "Robot Controls",
+      colour: 160,
+      modules: ["move", "led_control"]
+    };
+
+    let _toolbox = new Toolbox([
+      cat_logic,
+      cat_loops,
+      cat_math,
+      cat_sep,
+      cat_data,
+      cat_drone,
+      cat_robot // Add the new category here
+    ]);
 
     this.workspace = Blockly.inject("blocklyDiv", {
-      toolbox: _toolbox.toString()
+      toolbox: _toolbox.toString(),
     });
 
     this.registerCustomToolbox();

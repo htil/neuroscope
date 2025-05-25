@@ -126,7 +126,7 @@ async function createWindow() {
     }
   });
 
-  const ws = new WebSocket('ws://localhost:8765');
+  const ws = new WebSocket('ws://127.0.0.1:8765');
 
   ws.on('open', function open() {
     console.log('WebSocket connection opened');
@@ -170,6 +170,7 @@ async function createWindow() {
     let recent_val = parseInt(response);
     let forwardVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     console.log("drone forward", forwardVal, "sent", response);
+    var code = `window.sendCommand({ action: "move", distance: 50, heading: 0 });\n`;//Vex Control
     const moveCommand = { action: "move", heading: 0, speed: forwardVal, duration: 1 };
     sendCommand(moveCommand);
   });
@@ -201,27 +202,27 @@ async function createWindow() {
 
   let isUp = false;
 
-  ipcMain.on("manual-control", (event, response) => {
-    //console.log("index", response);
-    switch (response) {
-      case "takeoff":
-        isUp = true;
-        tello.takeoff();
-        break;
-      case "land":
-        isUp = true;
-        tello.land();
-        break;
-      case "up":
-        tello.up(20);
-        break;
-      case "down":
-        tello.down(20);
-        break;
-      default:
-        break;
-    }
-  });
+  // ipcMain.on("manual-control", (event, response) => {
+  //   //console.log("index", response);
+  //   switch (response) {
+  //     case "takeoff":
+  //       isUp = true;
+  //       tello.takeoff();
+  //       break;
+  //     case "land":
+  //       isUp = true;
+  //       tello.land();
+  //       break;
+  //     case "up":
+  //       tello.up(20);
+  //       break;
+  //     case "down":
+  //       tello.down(20);
+  //       break;
+  //     default:
+  //       break;
+  //   }
+  // });
 
   ipcMain.on("control-signal", (event, response) => {
     /*
@@ -240,6 +241,24 @@ async function createWindow() {
     }
     */
   });
+
+  ipcMain.on("send-command", (event, command) => {
+    sendCommand(command);
+  });
+
+  javascriptGenerator.forBlock["move"] = function (block) {
+    var distance = block.getFieldValue("DISTANCE");
+    var heading = block.getFieldValue("HEADING");
+    var code = `window.sendCommand({ action: "move", distance: 50, heading: 0 });\n`;//Vex Control
+    // var code = `window.sendCommand({ action: "move", distance: ${distance}, heading: ${heading} });\n`;
+    return code;
+  };
+
+  javascriptGenerator.forBlock["led_control"] = function (block) {
+    var color = block.getFieldValue("COLOR");
+    var code = `window.sendCommand({ action: "led_on", color: "${color}" });\n`;
+    return code;
+  };
 }
 
 // This method will be called when Electron has finished
