@@ -154,7 +154,7 @@ async function createWindow() {
     let recent_val = parseInt(response);
     let rightVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     console.log("Sphero right", rightVal, "sent", response);
-    const moveCommand = { action: "move", heading: 90, speed: rightVal, duration: 3 };
+    const moveCommand = { action: "move", distance: response, heading: 90 };//For Vex
     sendCommand(moveCommand);
   });
 
@@ -162,7 +162,7 @@ async function createWindow() {
     let recent_val = parseInt(response);
     let downVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     console.log("Sphero Left", downVal, "sent", response);
-    const moveCommand = { action: "move", heading: 270, speed: downVal, duration: 3 };
+    const moveCommand = { action: "move", distance: response, heading: 270 };//For Vex
     sendCommand(moveCommand);
   });
 
@@ -170,8 +170,7 @@ async function createWindow() {
     let recent_val = parseInt(response);
     let forwardVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     console.log("drone forward", forwardVal, "sent", response);
-    var code = `window.sendCommand({ action: "move", distance: 50, heading: 0 });\n`;//Vex Control
-    const moveCommand = { action: "move", heading: 0, speed: forwardVal, duration: 1 };
+    const moveCommand = { action: "move", distance: response, heading: 0 };//For Vex
     sendCommand(moveCommand);
   });
 
@@ -181,7 +180,7 @@ async function createWindow() {
     console.log("drone back", backVal, "sent", response);
     // let val = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     // console.log("drone back", val, "sent", response);
-    const moveCommand = { action: "move", heading: 180, speed: backVal, duration: 1 };
+    const moveCommand = { action: "move", distance: response, heading: 180 };//For Vex
     sendCommand(moveCommand);
     // tello.back(val);
   });
@@ -243,20 +242,22 @@ async function createWindow() {
   });
 
   ipcMain.on("send-command", (event, command) => {
-    sendCommand(command);
+    console.log("Received command from renderer:", command);
+    sendCommand(command); // Use the existing sendCommand function
   });
 
   javascriptGenerator.forBlock["move"] = function (block) {
     var distance = block.getFieldValue("DISTANCE");
     var heading = block.getFieldValue("HEADING");
-    var code = `window.sendCommand({ action: "move", distance: 50, heading: 0 });\n`;//Vex Control
-    // var code = `window.sendCommand({ action: "move", distance: ${distance}, heading: ${heading} });\n`;
+    var code = `electronAPI.sendCommand({ action: "move", distance: ${distance}, heading: ${heading} });\n`;
+    console.log("Generated code for move block:", code);
     return code;
   };
 
   javascriptGenerator.forBlock["led_control"] = function (block) {
     var color = block.getFieldValue("COLOR");
-    var code = `window.sendCommand({ action: "led_on", color: "${color}" });\n`;
+    var code = `electronAPI.sendCommand({ action: "led_on", color: "${color}" });\n`;
+    console.log("Generated code for LED block:", code);
     return code;
   };
 }

@@ -411,7 +411,7 @@ Blockly.Blocks["move"] = {
 javascriptGenerator.forBlock["move"] = function (block) {
   var distance = block.getFieldValue("DISTANCE");
   var heading = block.getFieldValue("HEADING");
-  var code = `window.sendCommand({ action: "move", distance: ${distance}, heading: ${heading} });\n`;
+  var code = `electronAPI.sendCommand({ action: "move", distance: ${distance}, heading: ${heading} });\n`;
   console.log("Generated code for move block:", code);
   return code;
 };

@@ -33,6 +33,7 @@ process.once("loaded", () => {
     cancelBluetoothRequest: (callback) => ipcRenderer.send("cancel-bluetooth-request", callback),
     bluetoothPairingRequest: (callback) => ipcRenderer.on("bluetooth-pairing-request", callback),
     bluetoothPairingResponse: (response) => ipcRenderer.send("bluetooth-pairing-response", response),
-    sendCommand: (command) => ipcRenderer.send("send-command", command)
+    // Expose sendCommand to the renderer process
+    sendCommand: (command) => ipcRenderer.send("send-command", command),
   });
 });
