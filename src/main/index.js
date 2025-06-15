@@ -80,26 +80,16 @@ async function createWindow() {
 
   /* Code to integrate BLE and Tello Drone */
 
+  // Electron native event listener for selecting a bluetooth device
+  // Purpose of this function is to get the callback function and send the device list to the renderer
   win.webContents.on("select-bluetooth-device", (event, deviceList, callback) => {
+    console.log("select-bluetooth-device");
     bleCallback = callback;
     event.preventDefault();
-    //console.log(deviceList);
+    console.log(deviceList);
     win.webContents.send("device_list", deviceList);
-    /*
-    deviceList.map((x) => {
-      console.log(x.deviceName);
-    });
-    */
+
     let result = null;
-    //selectBluetoothCallback = callback
-
-    /*
-    const result = deviceList.find((device) => {
-      return device.deviceName === MUSE_DEVICE_NAME;
-    });
-    */
-
-    //console.log(MuseClient)
 
     if (result) {
       callback(result.deviceId);
@@ -113,11 +103,11 @@ async function createWindow() {
   });
 
   setInterval(() => {
-    //console.log(tello.getState());
     let drone_state = tello.getState();
     win.webContents.send("drone_state", drone_state);
   }, 5000);
 
+  // This function triggers the connection to the selected BLE device
   ipcMain.on("select-ble-device", (event, selected_ble_device) => {
     console.log("device selected: ", selected_ble_device);
     if (bleCallback) {

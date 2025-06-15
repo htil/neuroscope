@@ -1,9 +1,13 @@
 import { MuseElectronClient } from "./muse-client.js";
+import { GanglionClient } from "./ganglion-client.js";
 
 export const BLE = class {
   constructor(callback, connect_button_id = "bluetooth") {
-    this.device = new MuseElectronClient();
+    //this.device = new MuseElectronClient();
+    this.device = new GanglionClient();
     this.callback = callback;
+    this.device_name = "";
+    this.ble_device_name = "";
 
     // Connect Events
     document.getElementById(connect_button_id).onclick = function (e) {
@@ -12,6 +16,7 @@ export const BLE = class {
       this.connect();
     }.bind(this);
 
+    // This is a listener for the BLE list
     window.electronAPI.getBLEList((event, list) => {
       let ble_device_list = [];
       for (let device in list) {
@@ -31,6 +36,7 @@ export const BLE = class {
         return;
       }
       let ble_device = event.target.getAttribute("data");
+      this.ble_device_name = event.target.getAttribute("name");
       window.electronAPI.selectBluetoothDevice(ble_device);
       $(".ui.modal").modal("hide");
       //console.log();
@@ -49,7 +55,7 @@ export const BLE = class {
     >
       <h1>${device_name}</h1>
       <div>
-        <button data="${device_id}" class="ui primary button">Connect</button>
+        <button name="${device_name}" data="${device_id}" class="ui primary button">Connect</button>
       </div>
     </div>
   </div>`;
@@ -68,8 +74,16 @@ export const BLE = class {
   async connect() {
     await this.device.connect();
 
-    // EEG DATA
-    this.device.eegReadings.subscribe(this.callback);
+    // console.log(this.ble_device_name);
+
+    // EMG DATA (Ganglion)
+    if (this.ble_device_name.includes("Ganglion-")) {
+      // console.log("Ganglion-");
+      // EEG Data (Muse)
+      this.device.stream.subscribe(this.callback);
+    } else if (this.ble_device_name.includes("Muse-")) {
+      this.device.eegReadings.subscribe(this.callback);
+    }
   }
 
   get_device() {

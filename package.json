@@ -72,7 +72,7 @@
       "identity": null
     },
     "win": {
-            "icon": "src/renderer/icons/icon.png"
+      "icon": "src/renderer/icons/icon.png"
     },
     "dmg": {
       "contents": [
@@ -91,6 +91,7 @@
   },
   "homepage": "./",
   "dependencies": {
+    "@openbci/utilities": "^1.0.0",
     "blockly": "^10.4.3",
     "d3": "^7.9.0",
     "js-interpreter": "^5.1.1",
