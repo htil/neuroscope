@@ -38,10 +38,12 @@ window.sendCommand = sendCommand;
 export const NeuroScope = class {
   constructor() {
     this.blocklyMain = new BlocklyMain();
-    this.signal_handler = new Signal(512);
+    this.signal_handler = new Signal(512, "ganglion");
     this.bpBis = new BandPowerVis();
     this.events = new Events(this.blocklyMain);
-    this.ble = new BLE(this.signal_handler.add_data.bind(this.signal_handler));
+    //this.ble = new BLE(this.signal_handler.add_data.bind(this.signal_handler));
+    this.ble = new BLE(this.signal_handler.add_data_ganglion.bind(this.signal_handler));
+
     this.feature_extractor = new FeatureExtractor(256);
     this.blocklyMain.start();
     setTimeout(() => {
