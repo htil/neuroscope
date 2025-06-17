@@ -32,6 +32,8 @@ process.once("loaded", () => {
     selectBluetoothDevice: (deviceID) => ipcRenderer.send("select-ble-device", deviceID),
     cancelBluetoothRequest: (callback) => ipcRenderer.send("cancel-bluetooth-request", callback),
     bluetoothPairingRequest: (callback) => ipcRenderer.on("bluetooth-pairing-request", callback),
-    bluetoothPairingResponse: (response) => ipcRenderer.send("bluetooth-pairing-response", response)
+    bluetoothPairingResponse: (response) => ipcRenderer.send("bluetooth-pairing-response", response),
+    // Expose sendCommand to the renderer process
+    sendCommand: (command) => ipcRenderer.send("send-command", command),
   });
 });

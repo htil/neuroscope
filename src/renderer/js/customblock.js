@@ -238,7 +238,7 @@ javascriptGenerator.forBlock["wait_seconds"] = function (block) {
 /* droneUp() */
 var droneUp = {
   type: "drone_up",
-  message0: "up %1 cm",
+  message0: "Right %1 cm",
   args0: [{ type: "input_value", name: "value", check: "Number" }],
   previousStatement: null,
   nextStatement: null,
@@ -262,7 +262,7 @@ javascriptGenerator.forBlock["drone_up"] = function (block, generator) {
 /* droneDown() */
 var droneDown = {
   type: "drone_down",
-  message0: "down %1 cm",
+  message0: "Left %1 cm",
   args0: [{ type: "input_value", name: "value", check: "Number" }],
   previousStatement: null,
   nextStatement: null,
@@ -413,5 +413,58 @@ Blockly.Blocks["land"] = {
 
 javascriptGenerator.forBlock["land"] = function (block, generator) {
   var code = `land();\n`;
+  return code;
+};
+
+var moveBlock = {
+  type: "move",
+  message0: "move %1 cm at heading %2°",
+  args0: [
+    { type: "field_number", name: "DISTANCE", value: 100, min: 0 },
+    { type: "field_number", name: "HEADING", value: 0, min: 0, max: 360 }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 160
+};
+
+Blockly.Blocks["move"] = {
+  init: function () {
+    this.jsonInit(moveBlock);
+  }
+};
+
+javascriptGenerator.forBlock["move"] = function (block) {
+  var distance = block.getFieldValue("DISTANCE");
+  var heading = block.getFieldValue("HEADING");
+  var code = `electronAPI.sendCommand({ action: "move", distance: ${distance}, heading: ${heading} });\n`;
+  console.log("Generated code for move block:", code);
+  return code;
+};
+
+var ledBlock = {
+  type: "led_control",
+  message0: "set LED color to %1",
+  args0: [
+    {
+      type: "field_dropdown",
+      name: "COLOR",
+      options: [["BLUE", "BLUE"], ["RED", "RED"], ["GREEN", "GREEN"], ["ORANGE", "ORANGE"]]
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 160
+};
+
+Blockly.Blocks["led_control"] = {
+  init: function () {
+    this.jsonInit(ledBlock);
+  }
+};
+
+javascriptGenerator.forBlock["led_control"] = function (block) {
+  var color = block.getFieldValue("COLOR");
+  var code = `window.sendCommand({ action: "led_on", color: "${color}" });\n`;
   return code;
 };
