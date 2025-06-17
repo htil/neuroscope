@@ -114,7 +114,10 @@ export const BlocklyMain = class {
   registerCustomToolbox = () => {
     // Triggers everytime category opens
     this.workspace.registerToolboxCategoryCallback("DATA", (ws) => {
-      return this.createCustomToolBox(["filter_signal"]);
+      return this.createCustomToolBox([
+        "filter_signal",
+        "muscle_energy",
+      ]);
     });
   };
 

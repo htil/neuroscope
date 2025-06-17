@@ -175,6 +175,32 @@ export const createCustomBlocks = function () {
     var code = `blockly_print(${text});\n`;
     return code;
   };
+
+  // 1. Define the block’s JSON
+  const muscleEnergyJson = {
+    type: "muscle_energy",
+    message0: "muscle energy",
+    output: "Number",
+    colour: 230,
+    tooltip: "Current EMG muscle‐energy value",
+    helpUrl: ""
+  };
+
+  // 2. Tell Blockly about the block
+  Blockly.Blocks["muscle_energy"] = {
+    init: function () {
+      this.jsonInit(muscleEnergyJson);
+    }
+  };
+
+  // 3. Generate JS for the block: read from window.filteredSample
+  javascriptGenerator.forBlock["muscle_energy"] = function (block) {
+    // Call the host-registered function:
+    return ["getMuscleEnergy()", Order.NONE];
+  };
+
+
+
 };
 
 ///
