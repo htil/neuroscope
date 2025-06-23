@@ -1,111 +1,113 @@
 # Neuroscope
 
-This project builds on [this boiler plate](https://github.com/a133xz/electron-vuejs-parcel-boilerplate) and adds functionality to control a Sphero Bolt using WebSocket commands.
+Neuroscope is an Electron-based application for real-time EEG/BCI signal visualization, feature extraction, and device connectivity using Bluetooth-enabled headsets like **OpenBCI Ganglion**. It features a Blockly-based visual programming interface for custom workflows and supports VEX and Ganglion devices.
+
+---
+
+## Features
+
+- **EEG Device Support:** Connect to OpenBCI Ganglion headsets via Bluetooth.
+- **Real-Time Visualization:** View EEG and telemetry data live.
+- **Blockly Programming:** Drag-and-drop blocks for custom signal processing and logic.
+- **Extensible:** Easily add new blocks or device integrations.
+
+---
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js
+- [Node.js](https://nodejs.org/) (v14+ recommended)
 - npm or yarn
-- Python 3.x
-- `websockets` Python package
+- Python 3.x (for some optional features)
+- Python package: `websockets` (optional, only if using WebSocket features)
+- A supported EEG device (OpenBCI Ganglion)
 
 ### Installation
 
-1. Clone the repository:
+1. **Clone the repository:**
     ```sh
     git clone https://github.com/yourusername/neuroscope.git
     cd neuroscope
     ```
 
-2. Install the dependencies:
+2. **Install Node dependencies:**
     ```sh
     yarn install
+    # or
+    npm install
     ```
 
-3. Start the Sphero server:
+3. *(Optional, only if using Python WebSocket features)*  
+   **Install Python dependencies:**
     ```sh
-    python SpheroServer.py
+    pip install websockets
     ```
 
-4. Start the Electron application:
+---
+
+## Running the Application
+
+1. **Start the Electron Application**
     ```sh
     yarn serve
+    # or
+    npm run serve
     ```
+
+    This will launch the Electron app. In development mode, it will open with hot-reloading and developer tools enabled.
+
+2. **Connect Your EEG Device**
+    - Click the **Bluetooth** button in the UI.
+    - Select your **Ganglion** device from the list.
+    - Wait for the connection confirmation.
+
+---
 
 ## Usage
 
-### Controlling the Sphero
+- **Signal Visualization:**  
+  EEG channels are displayed in real time. You can view raw and filtered signals, as well as extracted features (alpha, beta, etc.).
 
-The application sends WebSocket commands to control the Sphero Bolt. The following commands are available:
+- **Blockly Programming:**  
+  Use the Blockly interface to create custom workflows. Drag and drop blocks for signal processing and feature extraction.
 
-- **drone-up**: Moves the Sphero up.
-- **drone-down**: Moves the Sphero down.
-- **drone-forward**: Moves the Sphero forward.
+---
 
-### Code Changes
+## Troubleshooting
 
-The main changes are in the `index.js` file:
+- **Bluetooth Issues:**  
+  Make sure your Ganglion device is powered on and not paired with another app. On Windows, you may need to grant Bluetooth permissions.
+- **Missing Dependencies:**  
+  If you see errors about missing modules, re-run `yarn install` or `npm install`.
+- **Electron Fails to Start:**  
+  Make sure you are using a compatible Node.js version and have all dependencies installed.
 
-1. **WebSocket Setup**:
-    ```javascript
-    const WebSocket = require('ws');
-    const ws = new WebSocket('ws://localhost:8765');
+---
 
-    ws.on('open', function open() {
-      console.log('WebSocket connection opened');
-    });
+## Development
 
-    ws.on('error', function error(err) {
-      console.error('WebSocket error:', err);
-    });
-    ```
+- **Hot Reload:**  
+  The app reloads automatically in development mode.
+- **Main Process:**  
+  See `src/main/index.js` for Electron main process logic.
+- **Renderer Process:**  
+  See `src/renderer/js/` for UI and signal processing code.
+- **Blockly Blocks:**  
+  Custom blocks are defined in `src/renderer/js/customblock.js`.
 
-2. **Command Sending with Debounce**:
-    ```javascript
-    let lastCommandTime = 0;
-    const commandInterval = 3000; // 3 seconds
+---
 
-    function sendCommand(command) {
-      const currentTime = Date.now();
-      if (currentTime - lastCommandTime >= commandInterval) {
-        ws.send(JSON.stringify(command));
-        console.log("Command sent:", command);
-        lastCommandTime = currentTime;
-      } else {
-        console.log("Command skipped to avoid spamming:", command);
-      }
-    }
-    ```
+## License
 
-3. **IPC Event Handlers**:
-    ```javascript
-    ipcMain.on("drone-up", (event, response) => {
-      let recent_val = parseInt(response);
-      let upVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-      console.log("drone up", upVal, "sent", response);
-      const moveCommand = { action: "move", heading: 0, speed: upVal, duration: 1 };
-      sendCommand(moveCommand);
-    });
+MIT License. See [LICENSE](LICENSE) for details.
 
-    ipcMain.on("drone-down", (event, response) => {
-      let recent_val = parseInt(response);
-      let downVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-      console.log("drone down", downVal, "sent", response);
-      const moveCommand = { action: "move", heading: 180, speed: downVal, duration: 1 };
-      sendCommand(moveCommand);
-    });
+---
 
-    ipcMain.on("drone-forward", (event, response) => {
-      let recent_val = parseInt(response);
-      let forwardVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-      console.log("drone forward", forwardVal, "sent", response);
-      const moveCommand = { action: "move", heading: 90, speed: forwardVal, duration: 1 };
-      sendCommand(moveCommand);
-    });
-    ```
+## Acknowledgements
 
-## Work in Progress
+- [OpenBCI Ganglion](https://shop.openbci.com/products/ganglion-board)
+- [Blockly](https://developers.google.com/blockly)
+- [Electron](https://www.electronjs.org/)
 
-This project is a work in progress. The current implementation allows basic control of the Sphero Bolt using WebSocket commands. Further improvements and features are planned for future updates.
+---

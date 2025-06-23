@@ -7,15 +7,15 @@ from vex.vex_globals import *
 # Robot initialization for AIM platform
 robot = Robot()
 
-color_list = [
-    RED, GREEN, BLUE, WHITE, YELLOW, ORANGE, PURPLE, CYAN
-]
+# color_list = [
+#     RED, GREEN, BLUE, WHITE, YELLOW, ORANGE, PURPLE, CYAN
+# ]
 
-for color in color_list:
-    robot.led.on(ALL_LEDS, color)
-    wait(1, SECONDS)
+# for color in color_list:
+#     robot.led.on(ALL_LEDS, color)
+#     wait(1, SECONDS)
 
-robot.led.off(ALL_LEDS)
+# robot.led.off(ALL_LEDS)
 
 # Command handler for VEX AIM
 # Made 'path' optional so it works with the current websockets API

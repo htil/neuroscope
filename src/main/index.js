@@ -1,7 +1,9 @@
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { spawn } = require('child_process');
 const path = require("path");
 const tello = require("./tello.js");
 const WebSocket = require('ws');
+const waitOn = require('wait-on');
 
 const isProduction =
   process.env.NODE_ENV === "production" || !process || !process.env || !process.env.NODE_ENV;
@@ -19,7 +21,30 @@ let bleCallback = null;
 // be closed automatically when the JavaScript object is garbage collected.
 let win;
 
+let pythonProcess;
+
 async function createWindow() {
+  // ---- Start Python VEXServer ----
+  const pythonExe = 'python'; // or full path to python if not in PATH
+  const script = path.join(__dirname, '..', '..', 'resources', 'python', 'VEXServer.py');
+  pythonProcess = spawn(pythonExe, [script]);
+
+  pythonProcess.stdout.on('data', (data) => {
+    console.log(`PYTHON: ${data}`);
+  });
+
+  pythonProcess.stderr.on('data', (data) => {
+    console.error(`PYTHON ERROR: ${data}`);
+  });
+
+  pythonProcess.on('close', (code) => {
+    console.log(`Python process exited with code ${code}`);
+  });
+  // ---- End Python VEXServer ----
+
+  // Wait for the Python WebSocket server to be ready (up to 10 seconds)
+  await waitOn({ resources: ['tcp:127.0.0.1:8765'], timeout: 10000 });
+
   // If you'd like to set up auto-updating for your app,
   // I'd recommend looking at https://github.com/iffy/electron-updater-example
   // to use the method most suitable for you.
@@ -48,8 +73,7 @@ async function createWindow() {
   if (isDevelopment) {
     win.loadURL(selfHost);
   } else {
-    //win.loadURL(`${Protocol.scheme}://rse/index.html`);
-    win.loadURL(`file://${path.join(__dirname, "../renderer/index.html")}`);
+    win.loadURL(`file://${path.join(__dirname, "../../build/renderer/index.html")}`);
   }
 
   // Only do these things when in development
@@ -364,4 +388,8 @@ ipcMain.on("toMain", (event, { data }) => {
   const reply = data * 2;
   event.reply("fromMain", reply);
   //win.webContents.send("fromMain", reply);
+});
+
+win.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+  console.error('Window failed to load:', errorDescription);
 });

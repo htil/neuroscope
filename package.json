@@ -50,8 +50,7 @@
     "prettier": "^2.3.1",
     "sass": "^1.35.1",
     "typescript": "^4.3.2",
-    "vue": "^3.0.0",
-    "wait-on": "^5.0.0"
+    "vue": "^3.0.0"
   },
   "main": "./src/main/index.js",
   "build": {
@@ -60,11 +59,9 @@
     "compression": "maximum",
     "files": [
       "src/main/**/*",
-      "node_modules/**/*",
-      {
-        "from": "build/renderer",
-        "to": "src/renderer"
-      }
+      "src/renderer/**/*",
+      "resources/python/**/*",
+      "node_modules/**/*"
     ],
     "mac": {
       "icon": "src/renderer/icons/icon.icns",
@@ -95,6 +92,8 @@
     "blockly": "^10.4.3",
     "d3": "^7.9.0",
     "js-interpreter": "^5.1.1",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "ws": "^8.18.2",
+    "wait-on": "^5.3.0"
   }
 }
