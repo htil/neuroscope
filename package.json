@@ -63,12 +63,6 @@
       "resources/python/**/*",
       "node_modules/**/*"
     ],
-    "extraResources": [
-      {
-        "from": "resources/python/VEXServer.exe",
-        "to": "python/VEXServer.exe"
-      }
-    ],
     "mac": {
       "icon": "src/renderer/icons/icon.icns",
       "category": "public.app-category.productivity",

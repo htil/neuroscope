@@ -3,18 +3,9 @@ import websockets
 import json
 from vex import *
 from vex.vex_globals import *
-import sys
-import os
 
 # Robot initialization for AIM platform
 robot = Robot()
-
-def resource_path(relative_path):
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.join(os.path.abspath("."), relative_path)
-
-settings_path = resource_path("vex/settings.json")
 
 # color_list = [
 #     RED, GREEN, BLUE, WHITE, YELLOW, ORANGE, PURPLE, CYAN
@@ -68,7 +59,7 @@ async def handle_command(websocket, path=None):
         await websocket.send(json.dumps({"status": "error", "message": str(e)}))
 
 async def main():
-    port = 8777
+    port = 8765
     print(f"Starting WebSocket server on ws://127.0.0.1:{port}")
     async with websockets.serve(handle_command, "127.0.0.1", port):
         await asyncio.Future()  # run forever

@@ -23,41 +23,27 @@ let win;
 
 let pythonProcess;
 
-const isPackaged = app.isPackaged;
-let script;
-let pythonExe;
-
-if (isPackaged) {
-  // Use the packaged EXE
-  script = path.join(process.resourcesPath, 'python', 'VEXServer.exe');
-  pythonExe = script; // The exe is self-contained
-} else {
-  // Use the script and system Python in development
-  script = path.join(__dirname, '..', '..', 'resources', 'python', 'VEXServer.py');
-  pythonExe = 'python';
-}
-
-console.log("Launching Python server at:", script);
-pythonProcess = isPackaged
-  ? spawn(pythonExe, []) // exe, no args
-  : spawn(pythonExe, [script]);
-
-pythonProcess.stdout.on('data', (data) => {
-  console.log(`PYTHON: ${data}`);
-});
-
-pythonProcess.stderr.on('data', (data) => {
-  console.error(`PYTHON ERROR: ${data}`);
-});
-
-pythonProcess.on('close', (code) => {
-  console.log(`Python process exited with code ${code}`);
-});
-// ---- End Python VEXServer ----
-
 async function createWindow() {
+  // ---- Start Python VEXServer ----
+  const pythonExe = 'python'; // or full path to python if not in PATH
+  const script = path.join(__dirname, '..', '..', 'resources', 'python', 'VEXServer.py');
+  pythonProcess = spawn(pythonExe, [script]);
+
+  pythonProcess.stdout.on('data', (data) => {
+    console.log(`PYTHON: ${data}`);
+  });
+
+  pythonProcess.stderr.on('data', (data) => {
+    console.error(`PYTHON ERROR: ${data}`);
+  });
+
+  pythonProcess.on('close', (code) => {
+    console.log(`Python process exited with code ${code}`);
+  });
+  // ---- End Python VEXServer ----
+
   // Wait for the Python WebSocket server to be ready (up to 10 seconds)
-  await waitOn({ resources: ['ws://127.0.0.1:8777'], timeout: 10000 });
+  await waitOn({ resources: ['tcp:127.0.0.1:8765'], timeout: 10000 });
 
   // If you'd like to set up auto-updating for your app,
   // I'd recommend looking at https://github.com/iffy/electron-updater-example
@@ -80,11 +66,6 @@ async function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, "preload.js")
     }
-  });
-
-  // Add this here, not outside!
-  win.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-    console.error('Window failed to load:', errorDescription);
   });
 
   // Load the url of the dev server if in development mode
@@ -159,7 +140,7 @@ async function createWindow() {
     }
   });
 
-  const ws = new WebSocket('ws://127.0.0.1:8777');
+  const ws = new WebSocket('ws://127.0.0.1:8765');
 
   ws.on('open', function open() {
     console.log('WebSocket connection opened');
@@ -279,20 +260,20 @@ async function createWindow() {
     sendCommand(command); // Use the existing sendCommand function
   });
 
-  // javascriptGenerator.forBlock["move"] = function (block) {
-  //   var distance = block.getFieldValue("DISTANCE");
-  //   var heading = block.getFieldValue("HEADING");
-  //   var code = `electronAPI.sendCommand({ action: "move", distance: ${distance}, heading: ${heading} });\n`;
-  //   console.log("Generated code for move block:", code);
-  //   return code;
-  // };
+  javascriptGenerator.forBlock["move"] = function (block) {
+    var distance = block.getFieldValue("DISTANCE");
+    var heading = block.getFieldValue("HEADING");
+    var code = `electronAPI.sendCommand({ action: "move", distance: ${distance}, heading: ${heading} });\n`;
+    console.log("Generated code for move block:", code);
+    return code;
+  };
 
-  // javascriptGenerator.forBlock["led_control"] = function (block) {
-  //   var color = block.getFieldValue("COLOR");
-  //   var code = `electronAPI.sendCommand({ action: "led_on", color: "${color}" });\n`;
-  //   console.log("Generated code for LED block:", code);
-  //   return code;
-  // };
+  javascriptGenerator.forBlock["led_control"] = function (block) {
+    var color = block.getFieldValue("COLOR");
+    var code = `electronAPI.sendCommand({ action: "led_on", color: "${color}" });\n`;
+    console.log("Generated code for LED block:", code);
+    return code;
+  };
 }
 
 // This method will be called when Electron has finished
@@ -407,4 +388,8 @@ ipcMain.on("toMain", (event, { data }) => {
   const reply = data * 2;
   event.reply("fromMain", reply);
   //win.webContents.send("fromMain", reply);
+});
+
+win.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+  console.error('Window failed to load:', errorDescription);
 });
