@@ -68,6 +68,11 @@ async function createWindow() {
     }
   });
 
+  // Add the event listener here, AFTER creating the window
+  win.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('Window failed to load:', errorDescription);
+  });
+
   // Load the url of the dev server if in development mode
   // Load the index.html when not in development
   if (isDevelopment) {
@@ -388,8 +393,4 @@ ipcMain.on("toMain", (event, { data }) => {
   const reply = data * 2;
   event.reply("fromMain", reply);
   //win.webContents.send("fromMain", reply);
-});
-
-win.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-  console.error('Window failed to load:', errorDescription);
 });
