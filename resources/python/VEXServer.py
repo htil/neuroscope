@@ -24,6 +24,7 @@ async def handle_command(websocket, path=None):
         async for message in websocket:
             command = json.loads(message)
             action = command.get("action", "")
+            
             if action == "led_on":
                 color_name = command.get("color", "BLUE")
                 # Map string color names to vex.Color constants
@@ -42,6 +43,7 @@ async def handle_command(websocket, path=None):
                 robot.led.on(ALL_LEDS, color)
                 # Send a response back to the client
                 await websocket.send(json.dumps({"status": "success", "action": "led_on", "color": color_name}))
+                
             elif action == "move":
                 distance = command.get("distance", 100)
                 heading = command.get("heading", 0)
@@ -50,6 +52,21 @@ async def handle_command(websocket, path=None):
                 robot.move_for(distance, heading)
                 # Send a response back to the client
                 await websocket.send(json.dumps({"status": "success", "action": "move", "distance": distance, "heading": heading}))
+                
+            elif action == "turn_left":
+                degrees = command.get("degrees", 90)
+                print(f"Turning robot left: {degrees} degrees")
+                robot.turn_for(vex.TurnType.LEFT, degrees)  # Correct VEX method
+                # Send a response back to the client
+                await websocket.send(json.dumps({"status": "success", "action": "turn_left", "degrees": degrees}))
+                
+            elif action == "turn_right":
+                degrees = command.get("degrees", 90)
+                print(f"Turning robot right: {degrees} degrees")
+                robot.turn_for(vex.TurnType.RIGHT, degrees)  # Correct VEX method
+                # Send a response back to the client
+                await websocket.send(json.dumps({"status": "success", "action": "turn_right", "degrees": degrees}))
+                
             else:
                 print(f"Unknown command: {command}")
                 # Send an error response back to the client
@@ -59,7 +76,7 @@ async def handle_command(websocket, path=None):
         await websocket.send(json.dumps({"status": "error", "message": str(e)}))
 
 async def main():
-    port = 8765
+    port = 8777
     print(f"Starting WebSocket server on ws://127.0.0.1:{port}")
     async with websockets.serve(handle_command, "127.0.0.1", port):
         await asyncio.Future()  # run forever

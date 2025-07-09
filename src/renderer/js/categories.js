@@ -42,6 +42,13 @@ export const Categories = {
     ]
   },
 
+  // Add the new VEX category
+  cat_vex: {
+    name: "VEX",
+    colour: 230,
+    modules: ["vex_turn_left", "vex_turn_right"]
+  },
+
   cat_vars: {
     name: "Variables",
     colour: 100,

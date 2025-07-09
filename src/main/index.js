@@ -43,7 +43,7 @@ async function createWindow() {
   // ---- End Python VEXServer ----
 
   // Wait for the Python WebSocket server to be ready (up to 10 seconds)
-  await waitOn({ resources: ['tcp:127.0.0.1:8765'], timeout: 10000 });
+  await waitOn({ resources: ['tcp:127.0.0.1:8777'], timeout: 10000 });
 
   // If you'd like to set up auto-updating for your app,
   // I'd recommend looking at https://github.com/iffy/electron-updater-example
@@ -145,7 +145,7 @@ async function createWindow() {
     }
   });
 
-  const ws = new WebSocket('ws://127.0.0.1:8765');
+  const ws = new WebSocket('ws://127.0.0.1:8777');
 
   ws.on('open', function open() {
     console.log('WebSocket connection opened');
@@ -218,6 +218,18 @@ async function createWindow() {
     tello.ccw(recent_val);
   });
 
+  ipcMain.on("vex-turn-left", (event, degrees) => {
+    console.log(`[VEX] Turn left ${degrees}°`);
+    const turnCommand = { action: "turn_left", degrees: degrees };
+    sendCommand(turnCommand);
+  });
+
+  ipcMain.on("vex-turn-right", (event, degrees) => {
+    console.log(`[VEX] Turn right ${degrees}°`);
+    const turnCommand = { action: "turn_right", degrees: degrees };
+    sendCommand(turnCommand);
+  });
+
   let isUp = false;
 
   // ipcMain.on("manual-control", (event, response) => {
@@ -264,21 +276,6 @@ async function createWindow() {
     console.log("Received command from renderer:", command);
     sendCommand(command); // Use the existing sendCommand function
   });
-
-  javascriptGenerator.forBlock["move"] = function (block) {
-    var distance = block.getFieldValue("DISTANCE");
-    var heading = block.getFieldValue("HEADING");
-    var code = `electronAPI.sendCommand({ action: "move", distance: ${distance}, heading: ${heading} });\n`;
-    console.log("Generated code for move block:", code);
-    return code;
-  };
-
-  javascriptGenerator.forBlock["led_control"] = function (block) {
-    var color = block.getFieldValue("COLOR");
-    var code = `electronAPI.sendCommand({ action: "led_on", color: "${color}" });\n`;
-    console.log("Generated code for LED block:", code);
-    return code;
-  };
 }
 
 // This method will be called when Electron has finished

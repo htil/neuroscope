@@ -25,6 +25,9 @@ process.once("loaded", () => {
     droneDown: (response) => ipcRenderer.send("drone-down", response),
     droneForward: (response) => ipcRenderer.send("drone-forward", response),
     droneBack: (response) => ipcRenderer.send("drone-back", response),
+    //Vex commands
+    vexTurnLeft: (degrees) => ipcRenderer.send("vex-turn-left", degrees),
+    vexTurnRight: (degrees) => ipcRenderer.send("vex-turn-right", degrees),
     cw: (response) => ipcRenderer.send("cw", response),
     ccw: (response) => ipcRenderer.send("ccw", response),
     getBLEList: (callback) => ipcRenderer.on("device_list", callback),

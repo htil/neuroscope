@@ -442,14 +442,24 @@ javascriptGenerator.forBlock["move"] = function (block) {
   return code;
 };
 
-var ledBlock = {
+// LED Control Block
+var ledControl = {
   type: "led_control",
-  message0: "set LED color to %1",
+  message0: "turn LED %1",
   args0: [
     {
       type: "field_dropdown",
       name: "COLOR",
-      options: [["BLUE", "BLUE"], ["RED", "RED"], ["GREEN", "GREEN"], ["ORANGE", "ORANGE"]]
+      options: [
+        ["Red", "RED"],
+        ["Green", "GREEN"],
+        ["Blue", "BLUE"],
+        ["White", "WHITE"],
+        ["Yellow", "YELLOW"],
+        ["Orange", "ORANGE"],
+        ["Purple", "PURPLE"],
+        ["Cyan", "CYAN"]
+      ]
     }
   ],
   previousStatement: null,
@@ -459,12 +469,67 @@ var ledBlock = {
 
 Blockly.Blocks["led_control"] = {
   init: function () {
-    this.jsonInit(ledBlock);
+    this.jsonInit(ledControl);
   }
 };
 
 javascriptGenerator.forBlock["led_control"] = function (block) {
   var color = block.getFieldValue("COLOR");
-  var code = `window.sendCommand({ action: "led_on", color: "${color}" });\n`;
+  var code = `electronAPI.sendCommand({ action: "led_on", color: "${color}" });\n`;
+  console.log("Generated code for LED block:", code);
   return code;
+};
+
+// VEX Turn Left Block
+var vexTurnLeft = {
+  type: "vex_turn_left",
+  message0: "turn VEX left %1 degrees",
+  args0: [
+    {
+      type: "input_value",
+      name: "degrees",
+      check: "Number"
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 230
+};
+
+Blockly.Blocks["vex_turn_left"] = {
+  init: function () {
+    this.jsonInit(vexTurnLeft);
+  }
+};
+
+javascriptGenerator.forBlock["vex_turn_left"] = function (block, generator) {
+  var degrees = generator.valueToCode(block, "degrees", Order.ATOMIC) || "90";
+  return `vex_turn_left(${degrees});\n`;
+};
+
+// VEX Turn Right Block
+var vexTurnRight = {
+  type: "vex_turn_right",
+  message0: "turn VEX right %1 degrees",
+  args0: [
+    {
+      type: "input_value",
+      name: "degrees",
+      check: "Number"
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 230
+};
+
+Blockly.Blocks["vex_turn_right"] = {
+  init: function () {
+    this.jsonInit(vexTurnRight);
+  }
+};
+
+javascriptGenerator.forBlock["vex_turn_right"] = function (block, generator) {
+  var degrees = generator.valueToCode(block, "degrees", Order.ATOMIC);
+  return `vex_turn_right(${degrees});\n`;
 };

@@ -9,13 +9,13 @@ import Interpreter from "js-interpreter";
 import { InterpreterAPI } from "./interpreter-api.js";
 
 Blockly.setLocale(locale);
-let { cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_drone } = Categories;
+let { cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_drone, cat_vex } = Categories;
 
 export const BlocklyMain = class {
   constructor() {
     createCustomBlocks();
     this.interpreter = null;
-    this.runner = null; // may need to use window here
+    this.runner = null;
     this.latestCode = "";
 
     let cat_robot = {
@@ -31,7 +31,8 @@ export const BlocklyMain = class {
       cat_sep,
       cat_data,
       cat_drone,
-      cat_robot // Add the new category here
+      cat_vex,     // Add VEX category here
+      cat_robot
     ]);
 
     this.workspace = Blockly.inject("blocklyDiv", {

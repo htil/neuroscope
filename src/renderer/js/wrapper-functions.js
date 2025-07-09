@@ -68,6 +68,15 @@ export const WrapperFunctions = class {
     window.electronAPI.droneBack(value);
   }
 
+  vex_turn_left(degrees) {
+    window.electronAPI.vexTurnLeft(degrees);
+  }
+
+  vex_turn_right(degrees) {
+    window.electronAPI.vexTurnRight(degrees);
+  }
+
+
   ccw(value) {
     console.log("ccw");
     window.electronAPI.ccw(value);

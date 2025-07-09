@@ -15,19 +15,37 @@ import { ChannelVis } from "./channel_vis.js";
 import { BlocklyMain } from "./blockly-main.js";
 import { BandPowerVis } from "./band-power-vis.js";
 
-const ws = new WebSocket("ws://127.0.0.1:8765");
+let ws;
+let wsReconnectAttempts = 0;
+const maxReconnectAttempts = 5;
 
-ws.onopen = () => {
-  console.log("WebSocket connection established");
-};
+// function connectWebSocket() {
+//   ws = new WebSocket("ws://127.0.0.1:8777");
 
-ws.onerror = (error) => {
-  console.error("WebSocket error:", error);
-};
+//   ws.onopen = () => {
+//     console.log("WebSocket connection established");
+//     wsReconnectAttempts = 0;
+//   };
 
-ws.onmessage = (event) => {
-  console.log("Message from server:", event.data);
-};
+//   ws.onerror = (error) => {
+//     console.log("WebSocket connection attempt failed, retrying...");
+//   };
+
+//   ws.onclose = () => {
+//     if (wsReconnectAttempts < maxReconnectAttempts) {
+//       wsReconnectAttempts++;
+//       console.log(`WebSocket reconnecting... attempt ${wsReconnectAttempts}`);
+//       setTimeout(connectWebSocket, 2000); // Wait 2 seconds before retry
+//     }
+//   };
+
+//   ws.onmessage = (event) => {
+//     console.log("Message from server:", event.data);
+//   };
+// }
+
+// Wait a bit before connecting to give Python server time to start
+// setTimeout(connectWebSocket, 3000);
 
 function sendCommand(command) {
   window.electronAPI.sendCommand(command);
