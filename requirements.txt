@@ -1,3 +1,4 @@
 -e .
 opencv-python
 pyaudio
+websockets>=10.0
