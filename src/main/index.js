@@ -218,6 +218,7 @@ async function createWindow() {
     tello.ccw(recent_val);
   });
 
+  //Vex commands
   ipcMain.on("vex-turn-left", (event, degrees) => {
     console.log(`[VEX] Turn left ${degrees}°`);
     const turnCommand = { action: "turn_left", degrees: degrees };
@@ -228,6 +229,30 @@ async function createWindow() {
     console.log(`[VEX] Turn right ${degrees}°`);
     const turnCommand = { action: "turn_right", degrees: degrees };
     sendCommand(turnCommand);
+  });
+
+  ipcMain.on("vex-forward", (event, distance) => {
+    console.log(`[VEX] Move forward ${distance} inches`);
+    const moveCommand = { action: "move", distance: distance, heading: 0 };
+    sendCommand(moveCommand);
+  });
+
+  ipcMain.on("vex-back", (event, distance) => {
+    console.log(`[VEX] Move back ${distance} inches`);
+    const moveCommand = { action: "move", distance: distance, heading: 180 };
+    sendCommand(moveCommand);
+  });
+
+  ipcMain.on("vex-left", (event, distance) => {
+    console.log(`[VEX] Move left ${distance} inches`);
+    const moveCommand = { action: "move", distance: distance, heading: 270 };
+    sendCommand(moveCommand);
+  });
+
+  ipcMain.on("vex-right", (event, distance) => {
+    console.log(`[VEX] Move right ${distance} inches`);
+    const moveCommand = { action: "move", distance: distance, heading: 90 };
+    sendCommand(moveCommand);
   });
 
   let isUp = false;

@@ -45,13 +45,15 @@ async def handle_command(websocket, path=None):
                 await websocket.send(json.dumps({"status": "success", "action": "led_on", "color": color_name}))
                 
             elif action == "move":
-                distance = command.get("distance", 100)
+                distance_inches = command.get("distance", 4)  # Default to 4 inches instead of 100mm
                 heading = command.get("heading", 0)
+                # Convert inches to millimeters (1 inch = 25.4 mm)
+                distance_mm = distance_inches * 25.4
                 print(f"Received move command: {command}")
-                print(f"Moving robot: Distance={distance}, Heading={heading}")
-                robot.move_for(distance, heading)
+                print(f"Moving robot: Distance={distance_inches} inches ({distance_mm} mm), Heading={heading}")
+                robot.move_for(distance_mm, heading)
                 # Send a response back to the client
-                await websocket.send(json.dumps({"status": "success", "action": "move", "distance": distance, "heading": heading}))
+                await websocket.send(json.dumps({"status": "success", "action": "move", "distance_inches": distance_inches, "distance_mm": distance_mm, "heading": heading}))
                 
             elif action == "turn_left":
                 degrees = command.get("degrees", 90)

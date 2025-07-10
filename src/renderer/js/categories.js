@@ -29,7 +29,7 @@ export const Categories = {
 
   cat_drone: {
     name: "Drone",
-    colour: 70,
+    colour: 230,
     modules: [
       "drone_up",
       "drone_down",
@@ -45,8 +45,15 @@ export const Categories = {
   // Add the new VEX category
   cat_vex: {
     name: "VEX",
-    colour: 230,
-    modules: ["vex_turn_left", "vex_turn_right"]
+    colour: 70,
+    modules: [
+      "vex_forward",
+      "vex_back",
+      "vex_left",
+      "vex_right",
+      "vex_turn_left",
+      "vex_turn_right"
+    ]
   },
 
   cat_vars: {

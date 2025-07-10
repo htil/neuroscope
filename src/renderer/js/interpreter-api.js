@@ -24,7 +24,10 @@ export const InterpreterAPI = class {
       // VEX commands
       vex_turn_left: this.wrapperFunctions.vex_turn_left,
       vex_turn_right: this.wrapperFunctions.vex_turn_right,
-
+      vex_forward: this.wrapperFunctions.vex_forward,
+      vex_back: this.wrapperFunctions.vex_back,
+      vex_left: this.wrapperFunctions.vex_left,
+      vex_right: this.wrapperFunctions.vex_right,
 
       // ← NEW: expose muscle energy from window.filteredSample
       getMuscleEnergy: () => window.filteredSample

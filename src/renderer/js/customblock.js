@@ -483,7 +483,7 @@ javascriptGenerator.forBlock["led_control"] = function (block) {
 // VEX Turn Left Block
 var vexTurnLeft = {
   type: "vex_turn_left",
-  message0: "turn VEX left %1 degrees",
+  message0: "turn left %1 degrees",
   args0: [
     {
       type: "input_value",
@@ -493,7 +493,7 @@ var vexTurnLeft = {
   ],
   previousStatement: null,
   nextStatement: null,
-  colour: 230
+  colour: 70
 };
 
 Blockly.Blocks["vex_turn_left"] = {
@@ -510,7 +510,7 @@ javascriptGenerator.forBlock["vex_turn_left"] = function (block, generator) {
 // VEX Turn Right Block
 var vexTurnRight = {
   type: "vex_turn_right",
-  message0: "turn VEX right %1 degrees",
+  message0: "turn right %1 degrees",
   args0: [
     {
       type: "input_value",
@@ -520,7 +520,7 @@ var vexTurnRight = {
   ],
   previousStatement: null,
   nextStatement: null,
-  colour: 230
+  colour: 70
 };
 
 Blockly.Blocks["vex_turn_right"] = {
@@ -532,4 +532,112 @@ Blockly.Blocks["vex_turn_right"] = {
 javascriptGenerator.forBlock["vex_turn_right"] = function (block, generator) {
   var degrees = generator.valueToCode(block, "degrees", Order.ATOMIC);
   return `vex_turn_right(${degrees});\n`;
+};
+
+// VEX Forward Block
+var vexForward = {
+  type: "vex_forward",
+  message0: "forward %1 inches",
+  args0: [
+    {
+      type: "input_value",
+      name: "distance",
+      check: "Number"
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 70
+};
+
+Blockly.Blocks["vex_forward"] = {
+  init: function () {
+    this.jsonInit(vexForward);
+  }
+};
+
+javascriptGenerator.forBlock["vex_forward"] = function (block, generator) {
+  var distance = generator.valueToCode(block, "distance", Order.ATOMIC) || "4";
+  return `vex_forward(${distance});\n`;
+};
+
+// VEX Back Block
+var vexBack = {
+  type: "vex_back",
+  message0: "back %1 inches",
+  args0: [
+    {
+      type: "input_value",
+      name: "distance",
+      check: "Number"
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 70
+};
+
+Blockly.Blocks["vex_back"] = {
+  init: function () {
+    this.jsonInit(vexBack);
+  }
+};
+
+javascriptGenerator.forBlock["vex_back"] = function (block, generator) {
+  var distance = generator.valueToCode(block, "distance", Order.ATOMIC) || "4";
+  return `vex_back(${distance});\n`;
+};
+
+// VEX Left Block
+var vexLeft = {
+  type: "vex_left",
+  message0: "left %1 inches",
+  args0: [
+    {
+      type: "input_value",
+      name: "distance",
+      check: "Number"
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 70
+};
+
+Blockly.Blocks["vex_left"] = {
+  init: function () {
+    this.jsonInit(vexLeft);
+  }
+};
+
+javascriptGenerator.forBlock["vex_left"] = function (block, generator) {
+  var distance = generator.valueToCode(block, "distance", Order.ATOMIC) || "4";
+  return `vex_left(${distance});\n`;
+};
+
+// VEX Right Block
+var vexRight = {
+  type: "vex_right",
+  message0: "right %1 inches",
+  args0: [
+    {
+      type: "input_value",
+      name: "distance",
+      check: "Number"
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 70
+};
+
+Blockly.Blocks["vex_right"] = {
+  init: function () {
+    this.jsonInit(vexRight);
+  }
+};
+
+javascriptGenerator.forBlock["vex_right"] = function (block, generator) {
+  var distance = generator.valueToCode(block, "distance", Order.ATOMIC) || "4";
+  return `vex_right(${distance});\n`;
 };

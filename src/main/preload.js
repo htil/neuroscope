@@ -28,6 +28,10 @@ process.once("loaded", () => {
     //Vex commands
     vexTurnLeft: (degrees) => ipcRenderer.send("vex-turn-left", degrees),
     vexTurnRight: (degrees) => ipcRenderer.send("vex-turn-right", degrees),
+    vexForward: (distance) => ipcRenderer.send("vex-forward", distance),
+    vexBack: (distance) => ipcRenderer.send("vex-back", distance),
+    vexLeft: (distance) => ipcRenderer.send("vex-left", distance),
+    vexRight: (distance) => ipcRenderer.send("vex-right", distance),
     cw: (response) => ipcRenderer.send("cw", response),
     ccw: (response) => ipcRenderer.send("ccw", response),
     getBLEList: (callback) => ipcRenderer.on("device_list", callback),

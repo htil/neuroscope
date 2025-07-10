@@ -76,6 +76,21 @@ export const WrapperFunctions = class {
     window.electronAPI.vexTurnRight(degrees);
   }
 
+  vex_forward(distance) {
+    window.electronAPI.vexForward(distance);
+  }
+
+  vex_back(distance) {
+    window.electronAPI.vexBack(distance);
+  }
+
+  vex_left(distance) {
+    window.electronAPI.vexLeft(distance);
+  }
+
+  vex_right(distance) {
+    window.electronAPI.vexRight(distance);
+  }
 
   ccw(value) {
     console.log("ccw");
