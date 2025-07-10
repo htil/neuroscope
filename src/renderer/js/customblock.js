@@ -242,7 +242,7 @@ var droneUp = {
   args0: [{ type: "input_value", name: "value", check: "Number" }],
   previousStatement: null,
   nextStatement: null,
-  colour: drone_blocks_color
+  colour: 230
 };
 
 Blockly.Blocks["drone_up"] = {
@@ -266,7 +266,7 @@ var droneDown = {
   args0: [{ type: "input_value", name: "value", check: "Number" }],
   previousStatement: null,
   nextStatement: null,
-  colour: drone_blocks_color
+  colour: 230
 };
 
 Blockly.Blocks["drone_down"] = {
@@ -289,7 +289,7 @@ var droneForward = {
   args0: [{ type: "input_value", name: "value", check: "Number" }],
   previousStatement: null,
   nextStatement: null,
-  colour: drone_blocks_color
+  colour: 230
 };
 
 Blockly.Blocks["drone_forward"] = {
@@ -312,7 +312,7 @@ var droneBack = {
   args0: [{ type: "input_value", name: "value", check: "Number" }],
   previousStatement: null,
   nextStatement: null,
-  colour: drone_blocks_color
+  colour: 230
 };
 
 Blockly.Blocks["drone_back"] = {
@@ -335,7 +335,7 @@ var ccw = {
   args0: [{ type: "input_value", name: "value", check: "Number" }],
   previousStatement: null,
   nextStatement: null,
-  colour: drone_blocks_color
+  colour: 230
 };
 
 Blockly.Blocks["ccw"] = {
@@ -358,7 +358,7 @@ var cw = {
   args0: [{ type: "input_value", name: "value", check: "Number" }],
   previousStatement: null,
   nextStatement: null,
-  colour: drone_blocks_color
+  colour: 230
 };
 
 Blockly.Blocks["cw"] = {
@@ -381,7 +381,7 @@ var takeoff = {
   args0: [],
   previousStatement: null,
   nextStatement: null,
-  colour: drone_blocks_color
+  colour: 230
 };
 
 Blockly.Blocks["takeoff"] = {
@@ -402,7 +402,7 @@ var land = {
   args0: [],
   previousStatement: null,
   nextStatement: null,
-  colour: drone_blocks_color
+  colour: 100
 };
 
 Blockly.Blocks["land"] = {
