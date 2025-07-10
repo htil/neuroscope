@@ -44,12 +44,15 @@ export const Signal = class {
     let new_sample = Math.abs(sample.data[0] * this.EMG_SIGNAL_MULTIPLIER);
     let filtered_data = this.filter.singleStep(new_sample);
     //console.log("my sample", filtered_data);
-    window.filteredSample = filtered_data;
+    // window.filteredSample = filtered_data;
 
+    let value_for_kids = Math.abs(sample.data[0] * 100000).toFixed(2); // easier for students to interpret
     if (Date.now() - this.last_signal_update > this.value_refresh_delay_ms) {
-      this.signal_value_dom.innerHTML = Math.abs(sample.data[0] * 100000).toFixed(2); // easier for students to interpret
+      this.signal_value_dom.innerHTML = value_for_kids; // easier for students to interpret
       this.last_signal_update = Date.now();
     }
+
+    window.filteredSample = value_for_kids;
 
     if (!this.channels[electrode]) {
       this.channels[electrode] = [];
@@ -60,7 +63,7 @@ export const Signal = class {
       this.channels[electrode].shift();
     }
 
-    let formatted_data = filtered_data - this.x_top_padding;
+    let formatted_data = filtered_data - this.x_top_padding * 1.6;
     this.channels[electrode].push(formatted_data);
     //console.log(this.channels[electrode]);
   }
