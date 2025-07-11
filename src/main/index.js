@@ -155,18 +155,10 @@ async function createWindow() {
     console.error('WebSocket error:', err);
   });
 
-  let lastCommandTime = 0;
-  const commandInterval = 3000; // 3 seconds
-
   function sendCommand(command) {
-    const currentTime = Date.now();
-    if (currentTime - lastCommandTime >= commandInterval) {
-      ws.send(JSON.stringify(command));
-      console.log("Command sent:", command);
-      lastCommandTime = currentTime;
-    } else {
-      console.log("Command skipped to avoid spamming:", command);
-    }
+    ws.send(JSON.stringify(command));
+    console.log("Command sent:", command);
+    // Remove all the timing logic
   }
 
   ipcMain.on("drone-up", (event, response) => {
