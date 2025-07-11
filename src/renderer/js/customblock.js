@@ -480,17 +480,11 @@ javascriptGenerator.forBlock["led_control"] = function (block) {
   return code;
 };
 
-// VEX Turn Left Block
+// VEX Turn Left Block (simplified - no degrees input)
 var vexTurnLeft = {
   type: "vex_turn_left",
-  message0: "turn left %1 degrees",
-  args0: [
-    {
-      type: "input_value",
-      name: "degrees",
-      check: "Number"
-    }
-  ],
+  message0: "turn left",
+  args0: [], // Remove the degrees input
   previousStatement: null,
   nextStatement: null,
   colour: 70
@@ -503,21 +497,15 @@ Blockly.Blocks["vex_turn_left"] = {
 };
 
 javascriptGenerator.forBlock["vex_turn_left"] = function (block, generator) {
-  var degrees = generator.valueToCode(block, "degrees", Order.ATOMIC) || "90";
-  return `vex_turn_left(${degrees});\n`;
+  // Use a default value of 90 degrees since there's no input
+  return `vex_turn_left(90);\n`;
 };
 
-// VEX Turn Right Block
+// VEX Turn Right Block (simplified - no degrees input)
 var vexTurnRight = {
   type: "vex_turn_right",
-  message0: "turn right %1 degrees",
-  args0: [
-    {
-      type: "input_value",
-      name: "degrees",
-      check: "Number"
-    }
-  ],
+  message0: "turn right",
+  args0: [], // Remove the degrees input
   previousStatement: null,
   nextStatement: null,
   colour: 70
@@ -530,8 +518,8 @@ Blockly.Blocks["vex_turn_right"] = {
 };
 
 javascriptGenerator.forBlock["vex_turn_right"] = function (block, generator) {
-  var degrees = generator.valueToCode(block, "degrees", Order.ATOMIC);
-  return `vex_turn_right(${degrees});\n`;
+  // Use a default value of 90 degrees since there's no input
+  return `vex_turn_right(90);\n`;
 };
 
 // VEX Forward Block

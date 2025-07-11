@@ -76,3 +76,4 @@ build
 
 # Ignore virtual environments
 venv/
+/resources/python/vex/__pycache__
