@@ -25,25 +25,68 @@ let pythonProcess;
 
 async function createWindow() {
   // ---- Start Python VEXServer ----
-  const pythonExe = 'python'; // or full path to python if not in PATH
-  const script = path.join(__dirname, '..', '..', 'resources', 'python', 'VEXServer.py');
-  pythonProcess = spawn(pythonExe, [script]);
+  let pythonExe, script;
 
-  pythonProcess.stdout.on('data', (data) => {
-    console.log(`PYTHON: ${data}`);
-  });
+  if (isProduction) {
+    // Check if we have a bundled Python executable
+    const bundledPythonPath = path.join(process.resourcesPath, 'python', 'VEXServer.exe');
+    const fs = require('fs');
 
-  pythonProcess.stderr.on('data', (data) => {
-    console.error(`PYTHON ERROR: ${data}`);
-  });
+    if (fs.existsSync(bundledPythonPath)) {
+      // Use bundled Python executable
+      pythonExe = bundledPythonPath;
+      script = null;
+    } else {
+      // Fallback to system Python with bundled script
+      pythonExe = 'python';
+      script = path.join(process.resourcesPath, 'python', 'VEXServer.py');
+    }
+  } else {
+    // Development mode - use virtual environment Python
+    const venvPython = path.join(__dirname, '..', '..', '.venv', 'Scripts', 'python.exe');
+    const fs = require('fs');
 
-  pythonProcess.on('close', (code) => {
-    console.log(`Python process exited with code ${code}`);
-  });
+    if (fs.existsSync(venvPython)) {
+      pythonExe = venvPython;
+      console.log('Using virtual environment Python:', venvPython);
+    } else {
+      pythonExe = 'python';
+      console.log('Virtual environment not found, using system Python');
+    }
+    // Use development version that doesn't require physical robot
+    script = path.join(__dirname, '..', '..', 'resources', 'python', 'VEXServer_dev.py');
+  }
+
+  try {
+    pythonProcess = script ? spawn(pythonExe, [script]) : spawn(pythonExe);
+
+    pythonProcess.stdout.on('data', (data) => {
+      console.log(`PYTHON: ${data}`);
+    });
+
+    pythonProcess.stderr.on('data', (data) => {
+      console.error(`PYTHON ERROR: ${data}`);
+    });
+
+    pythonProcess.on('close', (code) => {
+      console.log(`Python process exited with code ${code}`);
+    });
+
+    pythonProcess.on('error', (error) => {
+      console.error(`Failed to start Python process: ${error.message}`);
+    });
+  } catch (error) {
+    console.error(`Error starting Python server: ${error.message}`);
+  }
   // ---- End Python VEXServer ----
 
   // Wait for the Python WebSocket server to be ready (up to 10 seconds)
-  await waitOn({ resources: ['tcp:127.0.0.1:8777'], timeout: 10000 });
+  try {
+    await waitOn({ resources: ['tcp:127.0.0.1:8777'], timeout: 10000 });
+    console.log('Python WebSocket server is ready');
+  } catch (error) {
+    console.error('Failed to connect to Python WebSocket server:', error.message);
+  }
 
   // If you'd like to set up auto-updating for your app,
   // I'd recommend looking at https://github.com/iffy/electron-updater-example
@@ -78,7 +121,8 @@ async function createWindow() {
   if (isDevelopment) {
     win.loadURL(selfHost);
   } else {
-    win.loadURL(`file://${path.join(__dirname, "../../build/renderer/index.html")}`);
+    // Fix the path for production builds
+    win.loadFile(path.join(__dirname, "../../build/renderer/index.html"));
   }
 
   // Only do these things when in development
@@ -312,10 +356,22 @@ app.on("ready", createWindow);
 
 // Quit when all windows are closed.
 app.on("window-all-closed", () => {
+  // Clean up Python process
+  if (pythonProcess && !pythonProcess.killed) {
+    pythonProcess.kill();
+  }
+
   // On macOS it is common for applications and their menu bar
   // to stay active until the user quits explicitly with Cmd + Q
   if (process.platform !== "darwin") {
     app.quit();
+  }
+});
+
+app.on("before-quit", () => {
+  // Clean up Python process before quitting
+  if (pythonProcess && !pythonProcess.killed) {
+    pythonProcess.kill();
   }
 });
 

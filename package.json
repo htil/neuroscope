@@ -31,6 +31,10 @@
     "vue:build": "cross-env NODE_ENV=production parcel build ./src/renderer/index.html --dist-dir build/renderer --public-url ./ --no-source-maps --no-scope-hoist",
     "electron:build": "electron-builder build -c.mac.target=dir",
     "build:local": "yarn build && yarn electron:build",
+    "build:win": "yarn build && electron-builder --win",
+    "build:python": "C:/dev/repos/VexEEG/neuroscope/.venv/Scripts/python.exe -m PyInstaller VEXServer.spec --distpath dist/python",
+    "build:all": "yarn build:python && yarn build && yarn build:win",
+    "prebuild:python": "echo 'PyInstaller already installed in virtual environment'",
     "clean": "rmdir build && rmdir .cache && rmdir dist && rmdir .parcel-cache",
     "patch": "npm version patch -m \"v%s\"",
     "postversion": "git push && git push --tags",
@@ -58,10 +62,23 @@
     "productName": "NeuroBlock",
     "compression": "maximum",
     "files": [
+      "build/main/**/*",
+      "build/renderer/**/*",
       "src/main/**/*",
-      "src/renderer/**/*",
-      "resources/python/**/*",
       "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/python",
+        "to": "python"
+      },
+      {
+        "from": "dist/python/VEXServer.exe",
+        "to": "python/VEXServer.exe",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "mac": {
       "icon": "src/renderer/icons/icon.icns",
@@ -69,7 +86,7 @@
       "identity": null
     },
     "win": {
-            "icon": "src/renderer/icons/icon.png"
+      "icon": "src/renderer/icons/icon.png"
     },
     "dmg": {
       "contents": [
