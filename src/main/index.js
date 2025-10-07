@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const { spawn } = require('child_process');
 const path = require("path");
+const fs = require("fs");
 const tello = require("./tello.js");
 const WebSocket = require('ws');
 const waitOn = require('wait-on');
@@ -10,9 +11,9 @@ const isProduction =
 const isDevelopment = !isProduction;
 
 const menu = require("./menu");
-const port = 3000; // Hardcoded; needs to match webpack.development.js and package.json
+const port = 3002; // Updated to match the new port
 const selfHost = `http://localhost:${port}`;
-const MUSE_DEVICE_NAME = "Muse-98A9";
+const GANGLION_DEVICE_NAME = "Ganglion-";
 const maxSpeed = 40;
 const minSpeed = 15;
 let bleCallback = null;
@@ -23,11 +24,54 @@ let win;
 
 let pythonProcess;
 
-async function createWindow() {
-  // ---- Start Python VEXServer ----
-  const pythonExe = 'python'; // or full path to python if not in PATH
-  const script = path.join(__dirname, '..', '..', 'resources', 'python', 'VEXServer.py');
-  pythonProcess = spawn(pythonExe, [script]);
+function getPythonExecutable() {
+  if (isDevelopment) {
+    // Development: Use virtual environment
+    const venvPath = path.join(__dirname, '..', '..', '.venv', 'Scripts', 'python.exe');
+    if (fs.existsSync(venvPath)) {
+      return venvPath;
+    }
+    // Fallback to system python
+    return 'python';
+  } else {
+    // Production: Use bundled executable
+    const bundledExe = path.join(process.resourcesPath, 'python', 'VEXServer.exe');
+    if (fs.existsSync(bundledExe)) {
+      return bundledExe;
+    }
+    // Fallback to script with bundled python
+    const bundledPython = path.join(process.resourcesPath, 'python', 'python.exe');
+    const bundledScript = path.join(process.resourcesPath, 'python', 'VEXServer.py');
+    if (fs.existsSync(bundledPython) && fs.existsSync(bundledScript)) {
+      return { exe: bundledPython, script: bundledScript };
+    }
+    // Final fallback
+    return 'python';
+  }
+}
+
+function getPythonScript() {
+  if (isDevelopment) {
+    return path.join(__dirname, '..', '..', 'resources', 'python', 'VEXServer.py');
+  } else {
+    return path.join(process.resourcesPath, 'python', 'VEXServer.py');
+  }
+}
+
+async function startPythonServer() {
+  const pythonExe = getPythonExecutable();
+
+  if (typeof pythonExe === 'object') {
+    // Production with separate python.exe and script
+    pythonProcess = spawn(pythonExe.exe, [pythonExe.script]);
+  } else if (pythonExe.endsWith('.exe') && isProduction) {
+    // Production with bundled executable
+    pythonProcess = spawn(pythonExe);
+  } else {
+    // Development or fallback
+    const script = getPythonScript();
+    pythonProcess = spawn(pythonExe, [script]);
+  }
 
   pythonProcess.stdout.on('data', (data) => {
     console.log(`PYTHON: ${data}`);
@@ -40,10 +84,24 @@ async function createWindow() {
   pythonProcess.on('close', (code) => {
     console.log(`Python process exited with code ${code}`);
   });
-  // ---- End Python VEXServer ----
 
   // Wait for the Python WebSocket server to be ready (up to 10 seconds)
-  await waitOn({ resources: ['tcp:127.0.0.1:8777'], timeout: 10000 });
+  try {
+    await waitOn({
+      resources: ['tcp:127.0.0.1:8777'],
+      timeout: 10000,
+      interval: 100
+    });
+    console.log('Python WebSocket server is ready');
+  } catch (error) {
+    console.warn('Python WebSocket server not ready, continuing anyway:', error.message);
+  }
+}
+
+async function createWindow() {
+  // ---- Start Python VEXServer ----
+  await startPythonServer();
+  // ---- End Python VEXServer ----
 
   // If you'd like to set up auto-updating for your app,
   // I'd recommend looking at https://github.com/iffy/electron-updater-example
@@ -78,7 +136,7 @@ async function createWindow() {
   if (isDevelopment) {
     win.loadURL(selfHost);
   } else {
-    win.loadURL(`file://${path.join(__dirname, "../../build/renderer/index.html")}`);
+    win.loadFile(path.join(__dirname, "../../build/renderer/index.html"));
   }
 
   // Only do these things when in development
@@ -407,4 +465,21 @@ ipcMain.on("toMain", (event, { data }) => {
   const reply = data * 2;
   event.reply("fromMain", reply);
   //win.webContents.send("fromMain", reply);
+});
+
+// Cleanup Python process on app quit
+app.on('before-quit', () => {
+  if (pythonProcess) {
+    console.log('Terminating Python process...');
+    pythonProcess.kill('SIGTERM');
+  }
+});
+
+app.on('window-all-closed', () => {
+  if (pythonProcess) {
+    pythonProcess.kill('SIGTERM');
+  }
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
 });
