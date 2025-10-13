@@ -2,7 +2,7 @@
 import * as Blockly from "blockly/core";
 import { javascriptGenerator, Order } from "blockly/javascript";
 
-let drone_blocks_color = 70;
+let dr  // 1. Define the block's JSONks_color = 70;
 
 export const createCustomBlocks = function () {
   /* Get Filter */
@@ -158,7 +158,7 @@ export const createCustomBlocks = function () {
   /////////
   var blockly_print = {
     message0: "print %1",
-    args0: [{ type: "input_value", name: "val", check: "Number" }],
+    args0: [{ type: "input_value", name: "val", check: null }],
     previousStatement: null,
     nextStatement: null,
     colour: 330
@@ -173,6 +173,15 @@ export const createCustomBlocks = function () {
   javascriptGenerator.forBlock["print"] = function (block) {
     var text = javascriptGenerator.valueToCode(block, "val", Order.ATOMIC);
     var code = `blockly_print(${text});\n`;
+    return code;
+  };
+
+
+
+  javascriptGenerator.forBlock["csv_save"] = function (block, generator) {
+    var filename = block.getFieldValue("FILENAME");
+    var duration = generator.valueToCode(block, "DURATION", Order.ATOMIC) || "5";
+    var code = `saveDataToCSV("${filename}", ${duration});\n`;
     return code;
   };
 

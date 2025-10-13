@@ -23,6 +23,7 @@ let bleCallback = null;
 let win;
 
 let pythonProcess;
+let ws = null;
 
 function getPythonExecutable() {
   if (isDevelopment) {
@@ -96,6 +97,97 @@ async function startPythonServer() {
   } catch (error) {
     console.warn('Python WebSocket server not ready, continuing anyway:', error.message);
   }
+}
+
+async function stopPythonServer() {
+  console.log('Stopping Python VEX server...');
+
+  if (pythonProcess) {
+    return new Promise((resolve) => {
+      pythonProcess.on('close', (code) => {
+        console.log(`Python process stopped with code ${code}`);
+        pythonProcess = null;
+        resolve();
+      });
+
+      // Send termination signal
+      pythonProcess.kill('SIGTERM');
+
+      // Force kill after 5 seconds if graceful shutdown fails
+      setTimeout(() => {
+        if (pythonProcess) {
+          console.log('Force killing Python process...');
+          pythonProcess.kill('SIGKILL');
+          pythonProcess = null;
+          resolve();
+        }
+      }, 5000);
+    });
+  }
+}
+
+async function reconnectVEX() {
+  console.log('Reconnecting to VEX AIM...');
+
+  try {
+    // Close existing WebSocket connection if it exists
+    if (ws) {
+      ws.close();
+      ws = null;
+    }
+
+    // Stop current Python server
+    await stopPythonServer();
+
+    // Wait a moment before restarting
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Start Python server again
+    await startPythonServer();
+
+    // Wait a bit more for the server to fully start
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Re-establish WebSocket connection
+    await createWebSocketConnection();
+
+    console.log('VEX AIM reconnection completed');
+    return { success: true, message: 'Successfully reconnected to VEX AIM' };
+  } catch (error) {
+    console.error('Failed to reconnect to VEX AIM:', error);
+    return { success: false, message: `Reconnection failed: ${error.message}` };
+  }
+}
+
+function createWebSocketConnection() {
+  return new Promise((resolve, reject) => {
+    try {
+      ws = new WebSocket('ws://127.0.0.1:8777');
+
+      ws.on('open', function open() {
+        console.log('WebSocket connection opened');
+        resolve();
+      });
+
+      ws.on('error', function error(err) {
+        console.error('WebSocket error:', err);
+        reject(err);
+      });
+
+      ws.on('close', function close() {
+        console.log('WebSocket connection closed');
+      });
+
+      // Set a timeout in case connection takes too long
+      setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) {
+          reject(new Error('WebSocket connection timeout'));
+        }
+      }, 5000);
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
 
 async function createWindow() {
@@ -203,21 +295,19 @@ async function createWindow() {
     }
   });
 
-  const ws = new WebSocket('ws://127.0.0.1:8777');
-
-  ws.on('open', function open() {
-    console.log('WebSocket connection opened');
-  });
-
-  ws.on('error', function error(err) {
-    console.error('WebSocket error:', err);
-  });
-
   function sendCommand(command) {
-    ws.send(JSON.stringify(command));
-    console.log("Command sent:", command);
-    // Remove all the timing logic
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(command));
+      console.log("Command sent:", command);
+    } else {
+      console.error('WebSocket not connected, cannot send command:', command);
+    }
   }
+
+  // Initialize WebSocket connection
+  createWebSocketConnection().catch(err => {
+    console.error('Failed to establish initial WebSocket connection:', err);
+  });
 
   ipcMain.on("drone-up", (event, response) => {
     let recent_val = parseInt(response);
@@ -303,6 +393,13 @@ async function createWindow() {
     console.log(`[VEX] Move right ${distance} inches`);
     const moveCommand = { action: "move", distance: distance, heading: 90 };
     sendCommand(moveCommand);
+  });
+
+  // VEX Reconnect handler
+  ipcMain.handle("vex-reconnect", async (event) => {
+    console.log("[VEX] Reconnect requested");
+    const result = await reconnectVEX();
+    return result;
   });
 
   let isUp = false;

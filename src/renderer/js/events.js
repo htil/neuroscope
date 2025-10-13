@@ -29,6 +29,7 @@ export const Events = class {
     });
 
     this.create_event("stopButton", this.stop_program.bind(this));
+    this.create_event("vex-reconnect", this.reconnect_vex.bind(this));
 
     window.electronAPI.getDroneState((event, drone_state) => {
       console.log(drone_state);
@@ -102,5 +103,47 @@ export const Events = class {
   drone_land() {
     console.log("land");
     window.electronAPI.manualControl("land");
+  }
+
+  /* VEX Events */
+  async reconnect_vex() {
+    console.log("Reconnecting to VEX AIM...");
+
+    // Change button to show loading state
+    const button = document.getElementById("vex-reconnect");
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<i class="spinner loading icon"></i>';
+    button.disabled = true;
+
+    // Log to console
+    if (window.neuroConsole) {
+      window.neuroConsole.print("Attempting to reconnect to VEX AIM...", 'info');
+    }
+
+    try {
+      const result = await window.electronAPI.vexReconnect();
+
+      if (result.success) {
+        if (window.neuroConsole) {
+          window.neuroConsole.print("Successfully reconnected to VEX AIM", 'success');
+        }
+        console.log("VEX reconnection successful");
+      } else {
+        if (window.neuroConsole) {
+          window.neuroConsole.print(`Reconnection failed: ${result.message}`, 'error');
+        }
+        console.error("VEX reconnection failed:", result.message);
+      }
+    } catch (error) {
+      const errorMsg = `Error during VEX reconnection: ${error.message}`;
+      if (window.neuroConsole) {
+        window.neuroConsole.print(errorMsg, 'error');
+      }
+      console.error(errorMsg);
+    } finally {
+      // Restore button state
+      button.innerHTML = originalHTML;
+      button.disabled = false;
+    }
   }
 };

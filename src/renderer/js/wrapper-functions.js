@@ -25,7 +25,12 @@ export const WrapperFunctions = class {
   }
 
   blockly_print(text) {
-    console.log(text);
+    // Use the console if available, otherwise fall back to browser console
+    if (window.neuroConsole) {
+      window.neuroConsole.print(text, 'output');
+    } else {
+      console.log(text);
+    }
   }
 
   getDelta() {

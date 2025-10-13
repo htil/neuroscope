@@ -13,7 +13,7 @@ import { Signal } from "./signal.js";
 import { FeatureExtractor } from "./feature-extractor.js";
 import { ChannelVis } from "./channel_vis.js";
 import { BlocklyMain } from "./blockly-main.js";
-import { BandPowerVis } from "./band-power-vis.js";
+import { Console } from "./console.js";
 
 let ws;
 let wsReconnectAttempts = 0;
@@ -57,15 +57,20 @@ export const NeuroScope = class {
   constructor() {
     this.blocklyMain = new BlocklyMain();
     this.signal_handler = new Signal(512, "ganglion");
-    this.bpBis = new BandPowerVis();
+    this.console = new Console();
     this.events = new Events(this.blocklyMain);
     //this.ble = new BLE(this.signal_handler.add_data.bind(this.signal_handler));
     this.ble = new BLE(this.signal_handler.add_data_ganglion.bind(this.signal_handler));
 
     this.feature_extractor = new FeatureExtractor(256);
     this.blocklyMain.start();
+
+    // Make console available globally for Blockly print commands
+    window.neuroConsole = this.console;
+
     setTimeout(() => {
       //this.ble.build_ble_modal_list(["device1", "device2"]);
+      this.console.log("NeuroScope initialized successfully");
     }, 3000);
 
     setInterval(() => {
@@ -76,7 +81,10 @@ export const NeuroScope = class {
       let data = this.signal_handler.get_data();
       let band_powers = this.feature_extractor.getFormattedBandPowers(data);
       window.band_powers = band_powers;
-      this.bpBis.update(band_powers);
+
+      // Instead of updating band power visualization, we could log signal data
+      // Uncomment the line below if you want to see signal updates in console
+      // this.console.log(`Signal channels: ${data.map(ch => ch.length).join(', ')} samples`);
     }, 400);
   }
 };

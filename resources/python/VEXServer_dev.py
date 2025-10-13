@@ -31,60 +31,44 @@ class MockVEXRobot:
         """Turn LED on"""
         self.led_state = True
         logger.info("🔆 LED turned ON")
-        return {"status": "success", "led": "on"}
+        return {"status": "success", "message": "LED turned on", "led_state": True}
         
     def led_off(self):
         """Turn LED off"""
         self.led_state = False
-        logger.info("🔅 LED turned OFF")
-        return {"status": "success", "led": "off"}
+        logger.info("💡 LED turned OFF")
+        return {"status": "success", "message": "LED turned off", "led_state": False}
         
     def move(self, distance=10):
         """Move robot forward"""
-        # Simulate movement based on current heading
-        import math
-        self.position["x"] += distance * math.cos(math.radians(self.position["heading"]))
-        self.position["y"] += distance * math.sin(math.radians(self.position["heading"]))
-        
-        logger.info(f"🤖 Moved {distance}cm forward to position ({self.position['x']:.1f}, {self.position['y']:.1f})")
-        return {
-            "status": "success", 
-            "action": "move", 
-            "distance": distance,
-            "position": self.position.copy()
-        }
+        self.position["x"] += distance * 0.1  # Simulate movement
+        logger.info(f"🚀 Moving robot forward: {distance} units")
+        return {"status": "success", "message": f"Moved forward {distance} units", "position": self.position}
         
     def turn_left(self, angle=90):
         """Turn robot left"""
-        self.position["heading"] = (self.position["heading"] + angle) % 360
-        logger.info(f"↺ Turned left {angle}° (now facing {self.position['heading']}°)")
-        return {
-            "status": "success", 
-            "action": "turn_left", 
-            "angle": angle,
-            "heading": self.position["heading"]
-        }
+        self.position["heading"] = (self.position["heading"] - angle) % 360
+        logger.info(f"🔄 Turning robot left: {angle} degrees")
+        return {"status": "success", "message": f"Turned left {angle} degrees", "heading": self.position["heading"]}
         
     def turn_right(self, angle=90):
         """Turn robot right"""
-        self.position["heading"] = (self.position["heading"] - angle) % 360
-        logger.info(f"↻ Turned right {angle}° (now facing {self.position['heading']}°)")
-        return {
-            "status": "success", 
-            "action": "turn_right", 
-            "angle": angle,
-            "heading": self.position["heading"]
-        }
+        self.position["heading"] = (self.position["heading"] + angle) % 360
+        logger.info(f"🔄 Turning robot right: {angle} degrees")
+        return {"status": "success", "message": f"Turned right {angle} degrees", "heading": self.position["heading"]}
         
     def get_status(self):
         """Get robot status"""
-        return {
+        status = {
+            "status": "success",
             "connected": self.connected,
             "battery": self.battery_level,
-            "led": "on" if self.led_state else "off",
-            "position": self.position.copy(),
+            "position": self.position,
+            "led_state": self.led_state,
             "timestamp": datetime.now().isoformat()
         }
+        logger.info(f"📊 Status requested: Battery {self.battery_level}%, Position {self.position}")
+        return status
 
 class VEXServerDev:
     """Development WebSocket server for VEX robot simulation"""
@@ -96,12 +80,12 @@ class VEXServerDev:
         self.clients = set()
         
     async def handle_client(self, websocket, path):
-        """Handle WebSocket client connection"""
-        self.clients.add(websocket)
-        client_addr = websocket.remote_address
-        logger.info(f"🔗 Client connected from {client_addr}")
-        
+        """Handle WebSocket client connections"""
         try:
+            client_ip = websocket.remote_address[0] if websocket.remote_address else "unknown"
+            logger.info(f"🔗 Client connected from {client_ip}")
+            self.clients.add(websocket)
+            
             # Send welcome message
             welcome_msg = {
                 "type": "welcome",
@@ -112,76 +96,65 @@ class VEXServerDev:
             await websocket.send(json.dumps(welcome_msg))
             
             async for message in websocket:
-                try:
-                    await self.process_message(websocket, message)
-                except json.JSONDecodeError:
-                    await self.send_error(websocket, "Invalid JSON format")
-                except Exception as e:
-                    logger.error(f"Error processing message: {e}")
-                    await self.send_error(websocket, str(e))
-                    
+                await self.process_message(websocket, message)
+                
         except websockets.exceptions.ConnectionClosed:
-            logger.info(f"🔌 Client {client_addr} disconnected")
+            logger.info(f"🔌 Client disconnected")
         except Exception as e:
-            logger.error(f"Connection error with {client_addr}: {e}")
+            logger.error(f"❌ Error handling client: {e}")
         finally:
             self.clients.discard(websocket)
             
     async def process_message(self, websocket, message):
-        """Process incoming WebSocket message"""
+        """Process incoming WebSocket messages"""
         try:
             data = json.loads(message)
-            command = data.get("command", "").lower()
-            params = data.get("params", {})
+            action = data.get("action", "").lower()
             
-            logger.info(f"📨 Received command: {command} with params: {params}")
+            logger.info(f"📨 Received command: {action}")
             
-            # Execute command
-            if command == "led_on":
-                result = self.robot.led_on()
-            elif command == "led_off":
-                result = self.robot.led_off()
-            elif command == "move":
-                distance = params.get("distance", 10)
-                result = self.robot.move(distance)
-            elif command == "turn_left":
-                angle = params.get("angle", 90)
-                result = self.robot.turn_left(angle)
-            elif command == "turn_right":
-                angle = params.get("angle", 90)
-                result = self.robot.turn_right(angle)
-            elif command == "get_status":
-                result = self.robot.get_status()
-            elif command == "ping":
-                result = {"status": "pong", "timestamp": datetime.now().isoformat()}
+            # Handle different VEX commands
+            if action == "led_on":
+                response = self.robot.led_on()
+            elif action == "led_off":
+                response = self.robot.led_off()
+            elif action == "move":
+                distance = data.get("distance", 10)
+                response = self.robot.move(distance)
+            elif action == "turn_left":
+                angle = data.get("angle", 90)
+                response = self.robot.turn_left(angle)
+            elif action == "turn_right":
+                angle = data.get("angle", 90)
+                response = self.robot.turn_right(angle)
+            elif action == "get_status":
+                response = self.robot.get_status()
+            elif action == "ping":
+                response = {"status": "success", "message": "pong", "timestamp": datetime.now().isoformat()}
+                logger.info("🏓 Ping received, sending pong")
             else:
-                result = {"status": "error", "message": f"Unknown command: {command}"}
-                
-            # Send response
-            response = {
-                "id": data.get("id"),
-                "command": command,
-                "result": result,
-                "timestamp": datetime.now().isoformat()
-            }
+                response = {"status": "error", "message": f"Unknown action: {action}"}
+                logger.warning(f"⚠️  Unknown command: {action}")
             
+            # Send response back to client
             await websocket.send(json.dumps(response))
             
+        except json.JSONDecodeError:
+            await self.send_error(websocket, "Invalid JSON format")
         except Exception as e:
-            await self.send_error(websocket, f"Command execution error: {str(e)}")
+            await self.send_error(websocket, f"Error processing message: {str(e)}")
             
     async def send_error(self, websocket, error_message):
         """Send error response to client"""
-        error_response = {
-            "status": "error",
-            "message": error_message,
-            "timestamp": datetime.now().isoformat()
-        }
-        await websocket.send(json.dumps(error_response))
+        error_response = {"status": "error", "message": error_message}
+        try:
+            await websocket.send(json.dumps(error_response))
+            logger.error(f"❌ Sent error to client: {error_message}")
+        except Exception as e:
+            logger.error(f"❌ Failed to send error message: {e}")
         
     async def start_server(self):
         """Start the WebSocket server"""
-        logger.info(f"🚀 Starting VEX Development Server on ws://{self.host}:{self.port}")
         logger.info("🎯 Mock VEX robot ready for commands:")
         logger.info("   • led_on / led_off")
         logger.info("   • move (distance)")
@@ -189,9 +162,28 @@ class VEXServerDev:
         logger.info("   • get_status")
         logger.info("   • ping")
         
-        async with websockets.serve(self.handle_client, self.host, self.port):
+        try:
+            # Start WebSocket server with proper error handling
+            server = await websockets.serve(
+                self.handle_client,
+                self.host,
+                self.port,
+                ping_interval=None,  # Disable ping for compatibility
+                ping_timeout=None,   # Disable ping timeout
+                close_timeout=10,
+                max_size=2**20,      # 1MB max message size
+                read_limit=2**16,    # 64KB read buffer
+                write_limit=2**16    # 64KB write buffer
+            )
+            
             logger.info(f"✅ Server running! Connect to ws://{self.host}:{self.port}")
+            
+            # Keep server running forever
             await asyncio.Future()  # Run forever
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to start server: {e}")
+            raise
 
 def main():
     """Main entry point"""
@@ -207,8 +199,10 @@ def main():
         asyncio.run(server.start_server())
     except KeyboardInterrupt:
         logger.info("🛑 Server stopped by user")
+        print("\nServer stopped.")
     except Exception as e:
         logger.error(f"❌ Server error: {e}")
+        print(f"Server error: {e}")
 
 if __name__ == "__main__":
     main()

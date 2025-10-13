@@ -32,6 +32,7 @@ process.once("loaded", () => {
     vexBack: (distance) => ipcRenderer.send("vex-back", distance),
     vexLeft: (distance) => ipcRenderer.send("vex-left", distance),
     vexRight: (distance) => ipcRenderer.send("vex-right", distance),
+    vexReconnect: () => ipcRenderer.invoke("vex-reconnect"),
     cw: (response) => ipcRenderer.send("cw", response),
     ccw: (response) => ipcRenderer.send("ccw", response),
     getBLEList: (callback) => ipcRenderer.on("device_list", callback),
