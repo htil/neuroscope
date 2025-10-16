@@ -11,6 +11,7 @@ export const Events = class {
 
     this.create_event("run", this.execute_code.bind(this));
     this.create_event("saveFile", this.download_code.bind(this));
+    this.create_event("exportCode", this.export_text_code.bind(this));
     this.load_input = this.eById("file_handler");
 
     let handleOnChangeUpload = (e) => {
@@ -145,5 +146,27 @@ export const Events = class {
       button.innerHTML = originalHTML;
       button.disabled = false;
     }
+  }
+
+  export_text_code() {
+    // Import the coding mode manager
+    import('./coding-mode-manager.js').then(({ codingModeManager }) => {
+      if (codingModeManager && codingModeManager.isInitialized) {
+        codingModeManager.exportCode('py');
+      } else {
+        console.warn('Coding mode manager not initialized. Using fallback export.');
+        // Fallback: export Blockly-generated JavaScript
+        const code = this.blockly.getLatestCode();
+        const blob = new Blob([code], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'neuroscope_blocks.js';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    });
   }
 };

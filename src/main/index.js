@@ -11,7 +11,7 @@ const isProduction =
 const isDevelopment = !isProduction;
 
 const menu = require("./menu");
-const port = 3002; // Updated to match the new port
+const port = 3005; // Updated to match the new port
 const selfHost = `http://localhost:${port}`;
 const GANGLION_DEVICE_NAME = "Ganglion-";
 const maxSpeed = 40;

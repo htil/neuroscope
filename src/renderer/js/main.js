@@ -14,6 +14,7 @@ import { FeatureExtractor } from "./feature-extractor.js";
 import { ChannelVis } from "./channel_vis.js";
 import { BlocklyMain } from "./blockly-main.js";
 import { Console } from "./console.js";
+import { simpleTextView } from "./simple-text-view.js";
 
 let ws;
 let wsReconnectAttempts = 0;
@@ -68,9 +69,15 @@ export const NeuroScope = class {
     // Make console available globally for Blockly print commands
     window.neuroConsole = this.console;
 
+    // Initialize simple text view
     setTimeout(() => {
-      //this.ble.build_ble_modal_list(["device1", "device2"]);
-      this.console.log("NeuroScope initialized successfully");
+      try {
+        simpleTextView.initialize(this.blocklyMain);
+        this.console.log("NeuroScope with text view initialized successfully");
+      } catch (error) {
+        console.error('Failed to initialize text view:', error);
+        this.console.log("NeuroScope initialized (blocks mode only)");
+      }
     }, 3000);
 
     setInterval(() => {
