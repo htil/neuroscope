@@ -21,29 +21,53 @@ export class SimpleTextView {
     }
 
     setupEventListeners() {
-        // Block mode button
-        const blockModeBtn = document.getElementById('block-mode-btn');
-        if (blockModeBtn) {
-            blockModeBtn.onclick = () => this.showBlocks();
-        }
+        // Use a small delay to ensure DOM is ready after console initialization
+        setTimeout(() => {
+            // Block mode button
+            const blockModeBtn = document.getElementById('block-mode-btn');
+            if (blockModeBtn) {
+                blockModeBtn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.showBlocks();
+                };
+                console.log('Block mode button listener attached');
+            } else {
+                console.warn('Block mode button not found');
+            }
 
-        // Text mode button  
-        const textModeBtn = document.getElementById('text-mode-btn');
-        if (textModeBtn) {
-            textModeBtn.onclick = () => this.showText();
-        }
+            // Text mode button  
+            const textModeBtn = document.getElementById('text-mode-btn');
+            if (textModeBtn) {
+                textModeBtn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.showText();
+                };
+                console.log('Text mode button listener attached');
+            } else {
+                console.warn('Text mode button not found');
+            }
 
-        // Convert button
-        const syncBtn = document.getElementById('sync-btn');
-        if (syncBtn) {
-            syncBtn.onclick = () => this.convertBlocksToText();
-        }
+            // Convert button
+            const syncBtn = document.getElementById('sync-btn');
+            if (syncBtn) {
+                syncBtn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.convertBlocksToText();
+                };
+                console.log('Sync button listener attached');
+            } else {
+                console.warn('Sync button not found');
+            }
 
-        // Export button
-        const exportBtn = document.getElementById('exportCode');
-        if (exportBtn) {
-            exportBtn.onclick = () => this.exportCode();
-        }
+            // Export button
+            const exportBtn = document.getElementById('exportCode');
+            if (exportBtn) {
+                exportBtn.onclick = () => this.exportCode();
+            }
+        }, 100);
     }
 
     showBlocks() {

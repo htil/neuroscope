@@ -69,16 +69,48 @@ export const NeuroScope = class {
     // Make console available globally for Blockly print commands
     window.neuroConsole = this.console;
 
-    // Initialize simple text view
+    // Initialize simple text view after console is ready
     setTimeout(() => {
       try {
         simpleTextView.initialize(this.blocklyMain);
-        this.console.log("NeuroScope with text view initialized successfully");
+        console.log("Text view initialized successfully");
+        this.console.info("NeuroScope with text view initialized successfully");
       } catch (error) {
         console.error('Failed to initialize text view:', error);
-        this.console.log("NeuroScope initialized (blocks mode only)");
+        this.console.error("Text view initialization failed: " + error.message);
       }
-    }, 3000);
+    }, 500); // Reduced from 3000 to 500ms
+
+    // Listen for VEX status updates and update UI badge
+    if (window.electronAPI && typeof window.electronAPI.onVexStatus === 'function') {
+      window.electronAPI.onVexStatus((status) => {
+        try {
+          const dot = document.getElementById('vex-status-dot');
+          if (!dot) return;
+          const { wsConnected, robotConnected } = status || {};
+          // Reset base classes
+          dot.className = 'ui empty circular label';
+          if (!wsConnected) {
+            dot.classList.add('grey');
+            dot.title = 'VEX status: app not connected to local server';
+          } else if (!robotConnected) {
+            dot.classList.add('yellow');
+            dot.title = 'VEX status: server connected, robot not connected';
+          } else {
+            dot.classList.add('green');
+            dot.title = 'VEX status: robot connected';
+          }
+        } catch (e) {
+          console.warn('Failed to update VEX status dot:', e);
+        }
+      });
+      // Request an initial status snapshot shortly after load
+      setTimeout(() => {
+        if (typeof window.electronAPI.requestVexStatus === 'function') {
+          window.electronAPI.requestVexStatus();
+        }
+      }, 800);
+    }
 
     setInterval(() => {
       this.signal_handler.plot_data(0);

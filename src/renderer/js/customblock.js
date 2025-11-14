@@ -638,3 +638,37 @@ javascriptGenerator.forBlock["vex_right"] = function (block, generator) {
   var distance = generator.valueToCode(block, "distance", Order.ATOMIC) || "4";
   return `vex_right(${distance});\n`;
 };
+
+// VEX Kicker Block
+var vexKicker = {
+  type: "vex_kicker",
+  message0: "kicker %1",
+  args0: [
+    {
+      type: "field_dropdown",
+      name: "ACTION",
+      options: [
+        ["Kick Hard", "HARD"],
+        ["Kick Soft", "SOFT"],
+        ["Place", "PLACE"]
+      ]
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 70
+};
+
+Blockly.Blocks["vex_kicker"] = {
+  init: function () {
+    this.jsonInit(vexKicker);
+  }
+};
+
+javascriptGenerator.forBlock["vex_kicker"] = function (block, generator) {
+  var action = block.getFieldValue("ACTION");
+  // Call the interpreter-exposed wrapper function so this works when run in the
+  // js-interpreter as well as when generating code.
+  var code = `vex_kicker("${action.toLowerCase()}");\n`;
+  return code;
+};

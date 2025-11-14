@@ -129,6 +129,13 @@ class VEXServerDev:
                 response = self.robot.turn_right(angle)
             elif action == "get_status":
                 response = self.robot.get_status()
+            elif action == "status":
+                # Minimal status for Electron UI badge
+                response = {"status": "ok", "action": "status", "robot_connected": bool(self.robot.connected)}
+            elif action == "reconnect_robot":
+                # Simulate reconnect in mock server
+                logger.info("🔄 Mock reconnect robot requested")
+                response = {"status": "ok", "action": "reconnect_robot", "message": "Robot reconnection initiated (mock)"}
             elif action == "ping":
                 response = {"status": "success", "message": "pong", "timestamp": datetime.now().isoformat()}
                 logger.info("🏓 Ping received, sending pong")

@@ -32,7 +32,16 @@ process.once("loaded", () => {
     vexBack: (distance) => ipcRenderer.send("vex-back", distance),
     vexLeft: (distance) => ipcRenderer.send("vex-left", distance),
     vexRight: (distance) => ipcRenderer.send("vex-right", distance),
+    // Kicker command IPC bridge
+    vexKicker: (type) => ipcRenderer.send("vex-kicker", type),
     vexReconnect: () => ipcRenderer.invoke("vex-reconnect"),
+    // VEX status IPC
+    onVexStatus: (callback) => {
+      if (typeof callback === 'function') {
+        ipcRenderer.on('vex-status', (event, status) => callback(status));
+      }
+    },
+    requestVexStatus: () => ipcRenderer.send('vex-status-request'),
     cw: (response) => ipcRenderer.send("cw", response),
     ccw: (response) => ipcRenderer.send("ccw", response),
     getBLEList: (callback) => ipcRenderer.on("device_list", callback),

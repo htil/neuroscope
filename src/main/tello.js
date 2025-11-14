@@ -60,15 +60,22 @@ class Tello {
   }
 }
 
-const tello = new Tello();
-module.exports.takeoff = () => tello.takeoff();
-module.exports.land = () => tello.land();
-module.exports.getState = () => tello.getState();
-module.exports.up = (value) => tello.send_message("up " + value);
-module.exports.down = (value) => tello.send_message("down " + value);
-module.exports.forward = (value) => tello.send_message("forward " + value);
-module.exports.cw = (value) => tello.send_message("cw " + value);
-module.exports.ccw = (value) => tello.send_message("ccw " + value);
-module.exports.back = (value) => tello.send_message("back " + value);
+// Lazy initialization - only create Tello instance when needed
+let tello = null;
+function getTello() {
+  if (!tello) {
+    console.log("Initializing Tello...");
+    tello = new Tello();
+  }
+  return tello;
+}
 
-console.log("Tello");
+module.exports.takeoff = () => getTello().takeoff();
+module.exports.land = () => getTello().land();
+module.exports.getState = () => getTello().getState();
+module.exports.up = (value) => getTello().send_message("up " + value);
+module.exports.down = (value) => getTello().send_message("down " + value);
+module.exports.forward = (value) => getTello().send_message("forward " + value);
+module.exports.cw = (value) => getTello().send_message("cw " + value);
+module.exports.ccw = (value) => getTello().send_message("ccw " + value);
+module.exports.back = (value) => getTello().send_message("back " + value);

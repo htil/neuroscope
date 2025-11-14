@@ -4,8 +4,91 @@ import json
 from vex import *
 from vex.vex_globals import *
 
-# Robot initialization for AIM platform
-robot = Robot()
+# Defer robot initialization to runtime to avoid exiting when AIM is not reachable
+robot = None
+
+async def try_connect_robot():
+    global robot
+    while True:
+        if robot is None:
+            try:
+                print("Attempting to connect to AIM robot at 192.168.4.1...")
+                robot = Robot()
+                print("AIM robot connected successfully.")
+            except SystemExit:
+                # aim.py may call sys.exit on failure; swallow and retry later
+                robot = None
+                print("AIM robot not reachable; will retry in 5s.")
+                await asyncio.sleep(5)
+            except Exception as e:
+                robot = None
+                print(f"Unexpected error connecting to AIM: {e}")
+                await asyncio.sleep(5)
+        await asyncio.sleep(1)
+
+def disconnect_robot():
+    """Properly disconnect and clean up the robot connection"""
+    global robot
+    if robot is not None:
+        try:
+            print("Disconnecting robot - closing all WebSocket connections...")
+            # Close the actual WebSocket connections first
+            try:
+                if hasattr(robot, '_ws_cmd_thread') and robot._ws_cmd_thread.ws:
+                    robot._ws_cmd_thread.ws.close()
+            except:
+                pass
+            try:
+                if hasattr(robot, '_ws_status_thread') and robot._ws_status_thread.ws:
+                    robot._ws_status_thread.ws.close()
+            except:
+                pass
+            try:
+                if hasattr(robot, '_ws_img_thread') and robot._ws_img_thread.ws:
+                    robot._ws_img_thread.ws.close()
+            except:
+                pass
+            try:
+                if hasattr(robot, '_ws_audio_thread') and robot._ws_audio_thread.ws:
+                    robot._ws_audio_thread.ws.close()
+            except:
+                pass
+            
+            # Then stop the threads
+            try:
+                robot._ws_cmd_thread.running = False
+            except:
+                pass
+            try:
+                robot._ws_status_thread.running = False
+            except:
+                pass
+            try:
+                robot._ws_img_thread.running = False
+            except:
+                pass
+            try:
+                robot._ws_audio_thread.running = False
+            except:
+                pass
+            try:
+                robot._ws_img_thread.stop_stream()
+            except:
+                pass
+            
+            # Give threads a moment to clean up
+            import time
+            time.sleep(0.3)
+            
+        except Exception as e:
+            print(f"Error during robot disconnect: {e}")
+        finally:
+            robot = None
+            print("Robot disconnected and ready for reconnection.")
+
+def ensure_robot():
+    if robot is None:
+        raise Exception("Robot not connected")
 
 # color_list = [
 #     RED, GREEN, BLUE, WHITE, YELLOW, ORANGE, PURPLE, CYAN
@@ -20,10 +103,19 @@ robot = Robot()
 # Command handler for VEX AIM
 # Made 'path' optional so it works with the current websockets API
 async def handle_command(websocket, path=None):
+    global robot  # Declare at function start
     try:
         async for message in websocket:
             command = json.loads(message)
             action = command.get("action", "")
+            
+            # Handle commands that require robot connection
+            if action in ("led_on", "move", "turn_left", "turn_right", "kicker"):
+                try:
+                    ensure_robot()
+                except Exception as e:
+                    await websocket.send(json.dumps({"status": "error", "message": str(e)}))
+                    continue
             
             if action == "led_on":
                 color_name = command.get("color", "BLUE")
@@ -68,6 +160,57 @@ async def handle_command(websocket, path=None):
                 robot.turn_for(vex.TurnType.RIGHT, degrees)  # Correct VEX method
                 # Send a response back to the client
                 await websocket.send(json.dumps({"status": "success", "action": "turn_right", "degrees": degrees}))
+            
+            elif action == "status":
+                # Report whether the local server is up and robot is connected
+                try:
+                    rc = robot is not None
+                except NameError:
+                    rc = False
+                await websocket.send(json.dumps({
+                    "status": "ok",
+                    "action": "status",
+                    "robot_connected": bool(rc)
+                }))
+            
+            elif action == "reconnect_robot":
+                # Force an immediate reconnection attempt to the robot
+                print("Reconnect robot requested - closing existing connection and reconnecting...")
+                disconnect_robot()  # Properly close old connection
+                await websocket.send(json.dumps({
+                    "status": "ok",
+                    "action": "reconnect_robot",
+                    "message": "Robot reconnection initiated"
+                }))
+                
+            elif action == "kicker":
+                # Accepts types: 'hard', 'soft', 'medium', or 'place'
+                ktype = str(command.get("type", "")).strip().lower()
+                print(f"Kicker command received: type={ktype}")
+                try:
+                    if ktype == "place":
+                        # Place gently in front of robot (proxy to SOFT kick)
+                        robot.kicker.place()
+                        await websocket.send(json.dumps({"status": "success", "action": "kicker", "type": "place"}))
+                    else:
+                        # Map friendly strings to KickType enum
+                        # Also accept raw values from vex_types (e.g., 'kick_soft')
+                        mapping = {
+                            "soft": KickType.SOFT,
+                            "medium": KickType.MEDIUM,
+                            "hard": KickType.HARD,
+                            "kick_soft": KickType.SOFT,
+                            "kick_medium": KickType.MEDIUM,
+                            "kick_hard": KickType.HARD,
+                        }
+                        kt = mapping.get(ktype)
+                        if kt is None:
+                            raise ValueError(f"Unknown kicker type '{ktype}'")
+                        robot.kicker.kick(kt)
+                        await websocket.send(json.dumps({"status": "success", "action": "kicker", "type": ktype}))
+                except Exception as ex:
+                    print(f"Error executing kicker: {ex}")
+                    await websocket.send(json.dumps({"status": "error", "action": "kicker", "message": str(ex)}))
                 
             else:
                 print(f"Unknown command: {command}")
@@ -80,8 +223,11 @@ async def handle_command(websocket, path=None):
 async def main():
     port = 8777
     print(f"Starting WebSocket server on ws://127.0.0.1:{port}")
+    # Start background task to try connecting to the robot continuously
+    connect_task = asyncio.create_task(try_connect_robot())
     async with websockets.serve(handle_command, "127.0.0.1", port):
         await asyncio.Future()  # run forever
+    connect_task.cancel()
 
 if __name__ == "__main__":
     asyncio.run(main())

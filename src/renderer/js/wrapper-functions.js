@@ -97,6 +97,19 @@ export const WrapperFunctions = class {
     window.electronAPI.vexRight(distance);
   }
 
+  // VEX Kicker wrapper: forwards kicker commands to main via electronAPI
+  vex_kicker(kind) {
+    // Normalize kind to lowercase string ('hard'|'soft'|'place')
+    const k = String(kind || "").toLowerCase();
+    // Use dedicated IPC channel (vex-kicker) for consistency & logging
+    if (window.electronAPI && typeof window.electronAPI.vexKicker === 'function') {
+      window.electronAPI.vexKicker(k);
+    } else {
+      // Fallback to generic command if alias missing (defensive)
+      window.electronAPI.sendCommand({ action: "kicker", type: k });
+    }
+  }
+
   ccw(value) {
     console.log("ccw");
     window.electronAPI.ccw(value);

@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <!--<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'">-->
-  <title>NeuroBlock</title>
+  <title>NeuroBlock EMG for VEX</title>
 
   <!--<script src="https://cdn.jsdelivr.net/npm/danfojs@1.1.2/lib/bundle.min.js"></script>-->
   <link rel="stylesheet" href="css/semantic.min.css" />
@@ -17,7 +17,7 @@
 
 <body>
   <div class="ui two column doubling stackable grid" style="margin: 0px !important; width: 100%; height: 100vh">
-    <div class="column" style="background-color: #f2f2f2; width: 45%">
+    <div class="column" style="background-color: #f2f2f2; width: 45%; position: relative; z-index: 10;">
       <div id="v" class="ui raised card centered" style="width: 100%; height: 40vh">
         <p style="padding: 10px">
           Muscle Energy <span id="signal_value">0</span>
@@ -30,22 +30,23 @@
       <div id="bands" class="ui raised card centered" style="width: 100%; height: 40vh">
         <!-- Console will be initialized here by JavaScript -->
       </div>
-    </div>
-    <div class="column" style="background-color: #f2f2f2; width: 55%; position: relative">
-      <!-- Mode Toggle Buttons -->
-      <div id="mode-toggle" style="position: absolute; top: 10px; left: 10px; z-index: 200">
+      <!-- Mode Toggle Buttons - Moved below console -->
+      <div id="mode-toggle"
+        style="margin-top: 10px; padding: 10px; background-color: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); position: relative; z-index: 150;">
         <div class="ui buttons">
           <button id="block-mode-btn" class="ui blue button active">
-            <i class="cube icon"></i> Blocks
+            <i class="cube icon" style="pointer-events: none;"></i> Blocks
           </button>
           <button id="text-mode-btn" class="ui button">
-            <i class="code icon"></i> Text
+            <i class="code icon" style="pointer-events: none;"></i> Text
           </button>
         </div>
         <button id="sync-btn" class="ui mini green button" style="margin-left: 10px" title="Convert blocks to text">
-          <i class="sync icon"></i> Convert
+          <i class="sync icon" style="pointer-events: none;"></i> Convert
         </button>
       </div>
+    </div>
+    <div class="column" style="background-color: #f2f2f2; width: 55%; position: relative; z-index: 1;">
 
       <!-- Block Editor (Blockly) -->
       <div id="blocklyDiv" style="height: 100%; width: 100%; display: block"></div>
@@ -97,7 +98,10 @@
       </button>
     </div>
 
-    <div style="position: absolute; right: 5px; top: 380px; z-index: 100">
+    <div
+      style="position: absolute; right: 5px; top: 380px; z-index: 100; display: flex; align-items: center; gap: 8px;">
+      <span id="vex-status-dot" class="ui empty circular label grey" title="VEX status: unknown"
+        style="display:inline-block;"></span>
       <button id="vex-reconnect" class="huge circular ui orange icon button" style="display: inherit; margin-left: auto"
         title="Reconnect to VEX AIM">
         <i class="refresh icon"></i>

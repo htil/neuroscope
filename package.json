@@ -55,8 +55,8 @@
   },
   "main": "./src/main/index.js",
   "build": {
-    "appId": "com.electron.electron-vuejs-parcel",
-    "productName": "NeuroBlock",
+    "appId": "com.htil.neuroblock-emg-vex",
+    "productName": "NeuroBlock EMG for VEX",
     "compression": "maximum",
     "files": [
       "src/main/**/*",

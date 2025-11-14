@@ -51,6 +51,7 @@ export const Categories = {
       "vex_back",
       "vex_left",
       "vex_right",
+      "vex_kicker",
       "vex_turn_left",
       "vex_turn_right"
     ]

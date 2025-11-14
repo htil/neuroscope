@@ -28,6 +28,8 @@ export const InterpreterAPI = class {
       vex_back: this.wrapperFunctions.vex_back,
       vex_left: this.wrapperFunctions.vex_left,
       vex_right: this.wrapperFunctions.vex_right,
+      // Kicker
+      vex_kicker: this.wrapperFunctions.vex_kicker,
 
       // ← NEW: expose muscle energy from window.filteredSample
       getMuscleEnergy: () => window.filteredSample

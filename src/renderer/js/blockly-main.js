@@ -18,11 +18,11 @@ export const BlocklyMain = class {
     this.runner = null;
     this.latestCode = "";
 
-    let cat_robot = {
-      name: "Robot Controls",
-      colour: 160,
-      modules: ["move", "led_control"]
-    };
+    // let cat_robot = {
+    //   name: "Robot Controls",
+    //   colour: 160,
+    //   modules: ["move", "led_control"]
+    // };
 
     let _toolbox = new Toolbox([
       cat_logic,
@@ -31,8 +31,7 @@ export const BlocklyMain = class {
       cat_sep,
       cat_data,
       cat_drone,
-      cat_vex,     // Add VEX category here
-      cat_robot
+      cat_vex
     ]);
 
     this.workspace = Blockly.inject("blocklyDiv", {
