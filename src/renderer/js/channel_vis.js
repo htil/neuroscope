@@ -1,9 +1,9 @@
 import * as d3 from "d3";
 
 export const ChannelVis = class {
-  constructor(signal_div_height) {
+  constructor() {
     this.width = window.innerWidth * 0.4;
-    this.height = window.innerHeight * signal_div_height;
+    this.height = window.innerHeight * 0.09;
     const signal_amplitude = 300;
     this.svgs = {};
 
