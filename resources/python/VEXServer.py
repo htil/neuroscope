@@ -216,16 +216,21 @@ async def handle_command(websocket, path=None):
                 print(f"Unknown command: {command}")
                 # Send an error response back to the client
                 await websocket.send(json.dumps({"status": "error", "message": "Unknown command"}))
+    except websockets.exceptions.ConnectionClosed:
+        print("Client disconnected")
     except Exception as e:
         print(f"Error handling command: {e}")
-        await websocket.send(json.dumps({"status": "error", "message": str(e)}))
+        try:
+            await websocket.send(json.dumps({"status": "error", "message": str(e)}))
+        except:
+            pass  # Connection may already be closed
 
 async def main():
     port = 8777
     print(f"Starting WebSocket server on ws://127.0.0.1:{port}")
     # Start background task to try connecting to the robot continuously
     connect_task = asyncio.create_task(try_connect_robot())
-    async with websockets.serve(handle_command, "127.0.0.1", port):
+    async with websockets.serve(handle_command, "127.0.0.1", port, ping_interval=None):
         await asyncio.Future()  # run forever
     connect_task.cancel()
 

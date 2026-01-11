@@ -1,5 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
 const path = require("path");
 const fs = require("fs");
 const tello = require("./tello.js");
@@ -23,6 +23,7 @@ let bleCallback = null;
 let win;
 
 let pythonProcess;
+const isWin = process.platform === 'win32';
 let ws = null;
 let pythonForceKillTimer = null; // timeout handle for forced kill
 let reconnectInProgress = false; // guard against overlapping reconnects
@@ -112,7 +113,10 @@ async function startPythonServer() {
 
   pythonProcess?.stdout?.on('data', (data) => console.log(`PYTHON: ${data}`));
   pythonProcess?.stderr?.on('data', (data) => console.error(`PYTHON ERROR: ${data}`));
-  pythonProcess?.on('close', (code) => console.log(`Python process exited with code ${code}`));
+  pythonProcess?.on('close', (code) => {
+    console.log(`Python process exited with code ${code}`);
+    pythonProcess = null;
+  });
 
   // Lightweight TCP poll instead of waitOn to avoid WebSocket handshake noise
   const net = require('net');
@@ -137,13 +141,25 @@ async function startPythonServer() {
 
 async function stopPythonServer() {
   console.log('Stopping Python VEX server...');
-  if (!pythonProcess) return;
+  if (!pythonProcess) {
+    console.log('Python process already stopped');
+    return;
+  }
   return new Promise(resolve => {
     if (pythonForceKillTimer) {
       clearTimeout(pythonForceKillTimer);
       pythonForceKillTimer = null;
     }
     const proc = pythonProcess;
+
+    // Check if process is already dead
+    if (proc.exitCode !== null || proc.killed) {
+      console.log('Python process already exited or killed');
+      pythonProcess = null;
+      resolve();
+      return;
+    }
+
     const finish = (code) => {
       if (pythonProcess === proc) pythonProcess = null;
       console.log(`Python process stopped with code ${code}`);
@@ -154,7 +170,15 @@ async function stopPythonServer() {
     pythonForceKillTimer = setTimeout(() => {
       if (pythonProcess === proc) {
         console.log('Force killing Python process (timeout)...');
-        try { proc.kill('SIGKILL'); } catch { }
+        if (isWin) {
+          try {
+            exec(`taskkill /F /PID ${proc.pid}`, (err) => {
+              if (err) console.warn('taskkill failed:', err);
+            });
+          } catch (e) { /* ignore */ }
+        } else {
+          try { proc.kill('SIGKILL'); } catch { }
+        }
       }
       pythonForceKillTimer = null;
     }, 5000);
@@ -187,11 +211,37 @@ async function reconnectVEX() {
       console.log('WebSocket not connected, restarting Python server...');
       if (ws) { try { ws.close(); } catch { } ws = null; }
       await stopPythonServer();
-      await new Promise(r => setTimeout(r, 500));
+
+      // Wait longer before restarting to ensure clean shutdown
+      await new Promise(r => setTimeout(r, 2000));
+
       await startPythonServer();
-      await new Promise(r => setTimeout(r, 1000));
-      await createWebSocketConnection();
-      console.log('VEX AIM reconnection completed');
+
+      // Wait longer after Python restart for server to be fully ready
+      await new Promise(r => setTimeout(r, 3000));
+
+      // Reconnect WebSocket with retry logic (5 attempts, 2s between each)
+      let wsConnected = false;
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        try {
+          console.log(`WebSocket connection attempt ${attempt}/5...`);
+          await createWebSocketConnection();
+          wsConnected = true;
+          console.log('✓ WebSocket reconnected successfully');
+          break;
+        } catch (err) {
+          console.warn(`WebSocket reconnection attempt ${attempt} failed:`, err.message);
+          if (attempt < 5) {
+            await new Promise(r => setTimeout(r, 2000));
+          }
+        }
+      }
+
+      if (!wsConnected) {
+        return { success: false, message: 'Failed to reconnect WebSocket after restarting Python server (5 attempts)' };
+      }
+
+      console.log('✓ VEX AIM reconnection completed');
       return { success: true, message: 'Successfully reconnected to VEX AIM' };
     }
   } catch (error) {
@@ -204,17 +254,20 @@ async function reconnectVEX() {
 
 function createWebSocketConnection() {
   return new Promise((resolve, reject) => {
+    let wsTimeout;
     try {
       ws = new WebSocket('ws://127.0.0.1:8777');
 
       ws.on('open', function open() {
         console.log('WebSocket connection opened');
+        clearTimeout(wsTimeout);
         attachStatusListener();
         resolve();
       });
 
       ws.on('error', function error(err) {
-        console.error('WebSocket error:', err);
+        console.error('WebSocket error:', err.message);
+        clearTimeout(wsTimeout);
         reject(err);
       });
 
@@ -222,13 +275,16 @@ function createWebSocketConnection() {
         console.log('WebSocket connection closed');
       });
 
-      // Set a timeout in case connection takes too long
-      setTimeout(() => {
+      // Increase timeout to 10 seconds and add detailed logging
+      wsTimeout = setTimeout(() => {
         if (ws && ws.readyState !== WebSocket.OPEN) {
-          reject(new Error('WebSocket connection timeout'));
+          console.warn('WebSocket connection timeout after 10s, terminating...');
+          try { ws.terminate?.(); } catch { }
+          reject(new Error('WebSocket connection timeout (10s)'));
         }
-      }, 5000);
+      }, 10000);
     } catch (error) {
+      clearTimeout(wsTimeout);
       reject(error);
     }
   });
@@ -248,13 +304,15 @@ function attachStatusListener() {
 }
 
 function pollRobotStatus() {
-  if (!ws || ws.readyState !== WebSocket.OPEN) {
-    win?.webContents.send('vex-status', { wsConnected: false, robotConnected: false });
+  // Guard: skip if WebSocket not ready OR window destroyed
+  if (!ws || ws.readyState !== WebSocket.OPEN || !win || win.isDestroyed()) {
     return;
   }
   try {
     ws.send(JSON.stringify({ action: 'status' }));
-  } catch { }
+  } catch (err) {
+    console.warn('Failed to poll status:', err);
+  }
 }
 
 async function createWindow() {
@@ -318,9 +376,16 @@ async function createWindow() {
 
   // Emitted when the window is closed.
   win.on("closed", () => {
-    // Dereference the window object, usually you would store windows
-    // in an array if your app supports multi windows, this is the time
-    // when you should delete the corresponding element.
+    // Clear the status polling interval
+    clearInterval(statusInterval);
+
+    // Close WebSocket if open
+    if (ws) {
+      try { ws.close(); } catch { }
+      ws = null;
+    }
+
+    // Dereference the window object
     win = null;
   });
 
@@ -387,8 +452,9 @@ async function createWindow() {
     console.error('Failed to establish initial WebSocket connection:', err);
   });
 
-  // Periodic status polling
-  setInterval(pollRobotStatus, 3000);
+  // Periodic status polling - but clear it when window closes
+  const statusInterval = setInterval(pollRobotStatus, 3000);
+  // NOTE: win.on("closed") handler is already defined above in createWindow()
 
   ipcMain.on("drone-up", (event, response) => {
     let recent_val = parseInt(response);
@@ -486,6 +552,12 @@ async function createWindow() {
 
   // VEX Reconnect handler
   ipcMain.handle("vex-reconnect", async (event) => {
+    // Guard: don't proceed if window is gone
+    if (!win || win.isDestroyed()) {
+      console.warn('[VEX] Reconnect aborted: window destroyed');
+      return { success: false, message: 'Window closed' };
+    }
+
     console.log("[VEX] Reconnect requested");
     const result = await reconnectVEX();
     return result;
@@ -657,18 +729,60 @@ ipcMain.on("toMain", (event, { data }) => {
 });
 
 // Cleanup Python process on app quit
-app.on('before-quit', () => {
-  if (pythonProcess) {
-    console.log('Terminating Python process...');
-    pythonProcess.kill('SIGTERM');
+app.on('before-quit', async (e) => {
+  e.preventDefault();
+
+  // Stop status polling immediately
+  if (ws) {
+    try { ws.close(); } catch { }
+    ws = null;
   }
+
+  if (pythonProcess) {
+    console.log('Terminating Python process before quit...');
+    await stopPythonServer();
+  }
+  app.exit(0);
 });
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
+  // Stop status polling
+  if (ws) {
+    try { ws.close(); } catch { }
+    ws = null;
+  }
+
   if (pythonProcess) {
-    pythonProcess.kill('SIGTERM');
+    console.log('Terminating Python process on window close...');
+    await stopPythonServer();
   }
   if (process.platform !== 'darwin') {
     app.quit();
+  }
+});
+
+// Also handle process signals and exit to avoid orphaned Python server
+process.on('SIGINT', () => {
+  console.log('SIGINT received, stopping Python...');
+  stopPythonServer().finally(() => process.exit(0));
+});
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, stopping Python...');
+  stopPythonServer().finally(() => process.exit(0));
+});
+
+process.on('exit', () => {
+  console.log('Process exiting, force-killing Python if needed...');
+  if (pythonProcess) {
+    try {
+      if (isWin) {
+        exec(`taskkill /F /PID ${pythonProcess.pid}`, (err) => {
+          if (err) console.warn('Final taskkill failed:', err);
+        });
+      } else {
+        pythonProcess.kill('SIGKILL');
+      }
+    } catch (e) { console.warn('Final kill failed:', e); }
   }
 });
