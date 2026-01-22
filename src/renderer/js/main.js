@@ -64,6 +64,17 @@ export const NeuroScope = class {
     this.feature_extractor = new FeatureExtractor(256);
     this.blocklyMain.start();
 
+    // Ensure a defined, numeric global for wrapper functions
+    window.band_powers = { delta: 0, theta: 0, alpha: 0, beta: 0, gamma: 0 };
+
+    const sanitize = (bp) => ({
+      delta: Number.isFinite(Number(bp?.delta)) ? Number(bp.delta) : 0,
+      theta: Number.isFinite(Number(bp?.theta)) ? Number(bp.theta) : 0,
+      alpha: Number.isFinite(Number(bp?.alpha)) ? Number(bp.alpha) : 0,
+      beta: Number.isFinite(Number(bp?.beta)) ? Number(bp.beta) : 0,
+      gamma: Number.isFinite(Number(bp?.gamma)) ? Number(bp.gamma) : 0,
+    });
+
     setInterval(() => {
       // Plot EEG channels
       this.signal_handler.plot_data(0);
@@ -74,7 +85,10 @@ export const NeuroScope = class {
       // Compute and render band power
       const data = this.signal_handler.get_data();
       const band_powers = this.feature_extractor.getFormattedBandPowers(data);
-      this.bpBis.update(band_powers);
+
+      // Update chart and global values used by Blockly getters
+      window.band_powers = sanitize(band_powers);
+      this.bpBis.update(window.band_powers);
     }, 400);
   }
 };

@@ -160,6 +160,7 @@ export class BlockToTextConverter {
     }
 
     handleIfBlock(block) {
+        // Handle main IF condition
         const condition = this.getFieldOrInputValue(block, 'IF0', 'True');
         this.addLine(`if ${condition}:`);
         this.indent();
@@ -170,10 +171,27 @@ export class BlockToTextConverter {
         } else {
             this.addLine("pass  # No actions specified");
         }
-
         this.dedent();
 
-        // Handle else clause if present
+        // Handle ELSEIF blocks (Blockly supports multiple elseif via IF1, IF2, etc.)
+        let elseifIndex = 1;
+        while (block.getInput(`IF${elseifIndex}`)) {
+            const elseifCondition = this.getFieldOrInputValue(block, `IF${elseifIndex}`, 'True');
+            this.addLine(`elif ${elseifCondition}:`);
+            this.indent();
+
+            const elseifDoBlock = block.getInputTargetBlock(`DO${elseifIndex}`);
+            if (elseifDoBlock) {
+                this.convertBlock(elseifDoBlock);
+            } else {
+                this.addLine("pass  # No actions specified");
+            }
+            this.dedent();
+
+            elseifIndex++;
+        }
+
+        // Handle final ELSE clause
         const elseBlock = block.getInputTargetBlock('ELSE');
         if (elseBlock) {
             this.addLine("else:");

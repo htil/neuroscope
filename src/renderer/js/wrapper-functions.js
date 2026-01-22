@@ -34,23 +34,28 @@ export const WrapperFunctions = class {
   }
 
   getDelta() {
-    return window.band_powers.delta;
+    const v = window?.band_powers?.delta;
+    return Number.isFinite(v) ? v : 0;
   }
 
   getTheta() {
-    return window.band_powers.theta;
+    const v = window?.band_powers?.theta;
+    return Number.isFinite(v) ? v : 0;
   }
 
   getAlpha() {
-    return window.band_powers.alpha;
+    const v = window?.band_powers?.alpha;
+    return Number.isFinite(v) ? v : 0;
   }
 
   getBeta() {
-    return window.band_powers.beta;
+    const v = window?.band_powers?.beta;
+    return Number.isFinite(v) ? v : 0;
   }
 
   getGamma() {
-    return window.band_powers.gamma;
+    const v = window?.band_powers?.gamma;
+    return Number.isFinite(v) ? v : 0;
   }
 
   drone_up(value) {
