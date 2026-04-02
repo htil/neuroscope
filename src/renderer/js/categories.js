@@ -42,16 +42,13 @@ export const Categories = {
     ]
   },
 
-  // Add the new VEX category
-  cat_vex: {
-    name: "VEX",
+  cat_mechdog: {
+    name: "MechDog",
     colour: 70,
     modules: [
       "vex_forward",
-      "vex_back",
       "vex_left",
       "vex_right",
-      "vex_kicker",
       "vex_turn_left",
       "vex_turn_right"
     ]

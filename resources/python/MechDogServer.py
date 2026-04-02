@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import sys
 from datetime import datetime
 
 import websockets
@@ -11,6 +12,7 @@ from bleak import BleakClient, BleakScanner
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
+    stream=sys.stdout,
 )
 logger = logging.getLogger(__name__)
 

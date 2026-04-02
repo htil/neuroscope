@@ -9,7 +9,7 @@ import Interpreter from "js-interpreter";
 import { InterpreterAPI } from "./interpreter-api.js";
 
 Blockly.setLocale(locale);
-let { cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_drone, cat_vex } = Categories;
+let { cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_drone, cat_mechdog } = Categories;
 
 export const BlocklyMain = class {
   constructor() {
@@ -33,7 +33,7 @@ export const BlocklyMain = class {
       cat_sep,
       cat_data,
       cat_drone,
-      cat_vex
+      cat_mechdog
     ]);
 
     this.workspace = Blockly.inject("blocklyDiv", {
@@ -107,9 +107,10 @@ export const BlocklyMain = class {
       ccw: "rotate counter-clockwise",
       cw: "rotate clockwise",
       vex_forward: "forward",
-      vex_back: "back",
       vex_left: "left",
       vex_right: "right",
+      vex_turn_left: "turn left",
+      vex_turn_right: "turn right",
       controls_if: "if"
     };
 
@@ -261,7 +262,6 @@ export const BlocklyMain = class {
             );
             break;
           case "vex_forward":
-          case "vex_back":
           case "vex_left":
           case "vex_right":
             this.validateRequiredInput(
