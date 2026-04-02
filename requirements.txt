@@ -3,3 +3,4 @@ pyaudio
 websockets>=10.0
 websocket-client>=1.5.1
 pyinstaller>=5.0
+bleak>=0.22.0

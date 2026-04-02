@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.join(spec_root, 'resources', 'python'))
 hiddenimports = []
 hiddenimports += collect_submodules('websockets')
 hiddenimports += collect_submodules('websocket')
+hiddenimports += collect_submodules('bleak')
 hiddenimports += collect_submodules('ssl')
 hiddenimports += collect_submodules('asyncio')
 hiddenimports += collect_submodules('vex')
@@ -34,7 +35,7 @@ else:
     print(f'[PYINSTALLER] WARNING: vex module not found at: {vex_source}')
 
 a = Analysis(
-    ['resources/python/VEXServer.py'],
+    ['resources/python/MechDogServer.py'],
     pathex=[],
     binaries=[],
     datas=datas,

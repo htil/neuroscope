@@ -108,7 +108,7 @@ export const Events = class {
 
   /* VEX Events */
   async reconnect_vex() {
-    console.log("Reconnecting to VEX AIM...");
+    console.log("Reconnecting to MechDog...");
 
     // Change button to show loading state
     const button = document.getElementById("vex-reconnect");
@@ -118,7 +118,7 @@ export const Events = class {
 
     // Log to console
     if (window.neuroConsole) {
-      window.neuroConsole.print("Attempting to reconnect to VEX AIM...", 'info');
+      window.neuroConsole.print("Attempting to reconnect to MechDog...", 'info');
     }
 
     try {
@@ -126,17 +126,17 @@ export const Events = class {
 
       if (result.success) {
         if (window.neuroConsole) {
-          window.neuroConsole.print("Successfully reconnected to VEX AIM", 'success');
+          window.neuroConsole.print("Successfully reconnected to MechDog", 'success');
         }
-        console.log("VEX reconnection successful");
+        console.log("MechDog reconnection successful");
       } else {
         if (window.neuroConsole) {
           window.neuroConsole.print(`Reconnection failed: ${result.message}`, 'error');
         }
-        console.error("VEX reconnection failed:", result.message);
+        console.error("MechDog reconnection failed:", result.message);
       }
     } catch (error) {
-      const errorMsg = `Error during VEX reconnection: ${error.message}`;
+      const errorMsg = `Error during MechDog reconnection: ${error.message}`;
       if (window.neuroConsole) {
         window.neuroConsole.print(errorMsg, 'error');
       }

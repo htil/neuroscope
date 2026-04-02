@@ -27,6 +27,8 @@ const isWin = process.platform === 'win32';
 let ws = null;
 let pythonForceKillTimer = null; // timeout handle for forced kill
 let reconnectInProgress = false; // guard against overlapping reconnects
+const robotBackend = String(process.env.ROBOT_BACKEND || 'mechdog').toLowerCase();
+const robotDisplayName = robotBackend === 'mechdog' ? 'MechDog' : 'VEX AIM';
 
 function getPythonExecutable() {
   if (isDevelopment) {
@@ -52,7 +54,11 @@ function getPythonExecutable() {
     }
     // Fallback to script with bundled python
     const bundledPython = path.join(process.resourcesPath, 'python', 'python.exe');
-    const bundledScript = path.join(process.resourcesPath, 'python', 'VEXServer.py');
+    const bundledScript = path.join(
+      process.resourcesPath,
+      'python',
+      robotBackend === 'mechdog' ? 'MechDogServer.py' : 'VEXServer.py'
+    );
     console.log('[PYTHON] Checking bundled python at:', bundledPython, 'exists:', fs.existsSync(bundledPython));
     console.log('[PYTHON] Checking bundled script at:', bundledScript, 'exists:', fs.existsSync(bundledScript));
     if (fs.existsSync(bundledPython) && fs.existsSync(bundledScript)) {
@@ -67,12 +73,15 @@ function getPythonExecutable() {
 function getPythonScript() {
   if (isDevelopment) {
     const useMock = (process.env.VEX_MOCK === '1' || String(process.env.VEX_MOCK || '').toLowerCase() === 'true');
-    const scriptName = useMock ? 'VEXServer_dev.py' : 'VEXServer.py';
+    const scriptName = useMock
+      ? 'VEXServer_dev.py'
+      : (robotBackend === 'mechdog' ? 'MechDogServer.py' : 'VEXServer.py');
     const devPath = path.join(__dirname, '..', '..', 'resources', 'python', scriptName);
     console.log(`[PYTHON] getPythonScript dev -> ${scriptName}:`, devPath, 'exists:', fs.existsSync(devPath));
     return devPath;
   } else {
-    const prodPath = path.join(process.resourcesPath, 'python', 'VEXServer.py');
+    const scriptName = robotBackend === 'mechdog' ? 'MechDogServer.py' : 'VEXServer.py';
+    const prodPath = path.join(process.resourcesPath, 'python', scriptName);
     console.log('[PYTHON] getPythonScript prod path:', prodPath, 'exists:', fs.existsSync(prodPath));
     return prodPath;
   }
@@ -140,7 +149,7 @@ async function startPythonServer() {
 }
 
 async function stopPythonServer() {
-  console.log('Stopping Python VEX server...');
+  console.log(`Stopping Python ${robotDisplayName} server...`);
   if (!pythonProcess) {
     console.log('Python process already stopped');
     return;
@@ -186,7 +195,7 @@ async function stopPythonServer() {
 }
 
 async function reconnectVEX() {
-  console.log('Reconnecting to VEX AIM...');
+  console.log(`Reconnecting to ${robotDisplayName}...`);
   if (reconnectInProgress) {
     console.log('Reconnect skipped: already in progress');
     return { success: false, message: 'Reconnect already running' };
@@ -204,8 +213,8 @@ async function reconnectVEX() {
       // Request a status update
       pollRobotStatus();
 
-      console.log('VEX AIM reconnection initiated');
-      return { success: true, message: 'Reconnecting to VEX AIM...' };
+      console.log(`${robotDisplayName} reconnection initiated`);
+      return { success: true, message: `Reconnecting to ${robotDisplayName}...` };
     } else {
       // WebSocket isn't connected - fall back to restarting everything
       console.log('WebSocket not connected, restarting Python server...');
@@ -241,11 +250,11 @@ async function reconnectVEX() {
         return { success: false, message: 'Failed to reconnect WebSocket after restarting Python server (5 attempts)' };
       }
 
-      console.log('✓ VEX AIM reconnection completed');
-      return { success: true, message: 'Successfully reconnected to VEX AIM' };
+      console.log(`✓ ${robotDisplayName} reconnection completed`);
+      return { success: true, message: `Successfully reconnected to ${robotDisplayName}` };
     }
   } catch (error) {
-    console.error('Failed to reconnect to VEX AIM:', error);
+    console.error(`Failed to reconnect to ${robotDisplayName}:`, error);
     return { success: false, message: `Reconnection failed: ${error.message}` };
   } finally {
     reconnectInProgress = false;
@@ -337,7 +346,7 @@ async function createWindow() {
   win = new BrowserWindow({
     width: 1200,
     height: 1000,
-    title: "NeuroBlock EEG for VEX",
+    title: `NeuroBlock EEG for ${robotDisplayName}`,
     icon: path.join(__dirname, "icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js")
