@@ -27,8 +27,59 @@ const isWin = process.platform === 'win32';
 let ws = null;
 let pythonForceKillTimer = null; // timeout handle for forced kill
 let reconnectInProgress = false; // guard against overlapping reconnects
+let pythonStopping = false;
+let backendRestartTimer = null;
 const robotBackend = String(process.env.ROBOT_BACKEND || 'mechdog').toLowerCase();
 const robotDisplayName = robotBackend === 'mechdog' ? 'MechDog' : 'VEX AIM';
+
+function publishRobotStatus(status) {
+  if (!win || win.isDestroyed()) return;
+  win.webContents.send('vex-status', status);
+}
+
+function clearBackendRestartTimer() {
+  if (backendRestartTimer) {
+    clearTimeout(backendRestartTimer);
+    backendRestartTimer = null;
+  }
+}
+
+async function restoreBackendConnection() {
+  try {
+    if (!pythonProcess) {
+      await startPythonServer();
+    }
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      await createWebSocketConnection();
+    }
+    pollRobotStatus();
+  } catch (error) {
+    console.error(`[${robotDisplayName}] Failed to restore backend connection:`, error);
+    throw error;
+  }
+}
+
+function scheduleBackendRestart(reason = 'unknown') {
+  if (pythonStopping || !win || win.isDestroyed()) {
+    return;
+  }
+  if (backendRestartTimer) {
+    return;
+  }
+
+  console.warn(`[${robotDisplayName}] Scheduling backend restart after ${reason}`);
+  publishRobotStatus({ wsConnected: false, robotConnected: false, backendRunning: false });
+  backendRestartTimer = setTimeout(async () => {
+    backendRestartTimer = null;
+    try {
+      await restoreBackendConnection();
+      console.log(`[${robotDisplayName}] Backend restored successfully`);
+    } catch (error) {
+      console.error(`[${robotDisplayName}] Backend restart attempt failed:`, error);
+      scheduleBackendRestart('failed restart attempt');
+    }
+  }, 1500);
+}
 
 function getPythonExecutable() {
   if (isDevelopment) {
@@ -88,11 +139,16 @@ function getPythonScript() {
 }
 
 async function startPythonServer() {
+  if (pythonProcess) {
+    return;
+  }
   // Clear any lingering force-kill timer from a prior stop
   if (pythonForceKillTimer) {
     clearTimeout(pythonForceKillTimer);
     pythonForceKillTimer = null;
   }
+  clearBackendRestartTimer();
+  pythonStopping = false;
   const pythonExe = getPythonExecutable();
   console.log('[PYTHON] Resolved python executable:', pythonExe);
 
@@ -117,6 +173,7 @@ async function startPythonServer() {
     }
   } catch (spawnErr) {
     console.error('[PYTHON] Spawn error:', spawnErr);
+    scheduleBackendRestart('spawn error');
     return; // abort start
   }
 
@@ -125,6 +182,9 @@ async function startPythonServer() {
   pythonProcess?.on('close', (code) => {
     console.log(`Python process exited with code ${code}`);
     pythonProcess = null;
+    if (!pythonStopping) {
+      scheduleBackendRestart(`python exit code ${code}`);
+    }
   });
 
   // Lightweight TCP poll instead of waitOn to avoid WebSocket handshake noise
@@ -150,6 +210,8 @@ async function startPythonServer() {
 
 async function stopPythonServer() {
   console.log(`Stopping Python ${robotDisplayName} server...`);
+  pythonStopping = true;
+  clearBackendRestartTimer();
   if (!pythonProcess) {
     console.log('Python process already stopped');
     return;
@@ -271,6 +333,7 @@ function createWebSocketConnection() {
         console.log('WebSocket connection opened');
         clearTimeout(wsTimeout);
         attachStatusListener();
+        publishRobotStatus({ wsConnected: true, robotConnected: false, backendRunning: true });
         resolve();
       });
 
@@ -282,6 +345,11 @@ function createWebSocketConnection() {
 
       ws.on('close', function close() {
         console.log('WebSocket connection closed');
+        publishRobotStatus({ wsConnected: false, robotConnected: false, backendRunning: !!pythonProcess });
+        if (!pythonStopping) {
+          ws = null;
+          scheduleBackendRestart('websocket close');
+        }
       });
 
       // Increase timeout to 10 seconds and add detailed logging
@@ -306,7 +374,14 @@ function attachStatusListener() {
     try {
       const msg = JSON.parse(data);
       if (msg.robot_connected !== undefined) {
-        win?.webContents.send('vex-status', { wsConnected: true, robotConnected: !!msg.robot_connected });
+        publishRobotStatus({
+          wsConnected: true,
+          robotConnected: !!msg.robot_connected,
+          backendRunning: true,
+          deviceName: msg.device_name,
+          deviceAddress: msg.device_address,
+          lastError: msg.last_error
+        });
       }
     } catch { /* ignore */ }
   });
@@ -457,8 +532,8 @@ async function createWindow() {
   }
 
   // Initialize WebSocket connection
-  createWebSocketConnection().catch(err => {
-    console.error('Failed to establish initial WebSocket connection:', err);
+  restoreBackendConnection().catch(err => {
+    console.error('Failed to establish initial backend connection:', err);
   });
 
   // Periodic status polling - but clear it when window closes

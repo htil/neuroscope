@@ -20,7 +20,7 @@ class MechDogController:
         self.device_name_prefix = os.getenv("MECHDOG_NAME_PREFIX", "mechdog_").lower()
         self.device_address = os.getenv("MECHDOG_ADDRESS", "").strip()
         self.write_uuid = os.getenv("MECHDOG_WRITE_UUID", "0000ffe1-0000-1000-8000-00805f9b34fb")
-        self.pair = os.getenv("MECHDOG_PAIR", "1").strip().lower() not in ("0", "false", "no")
+        self.pair = os.getenv("MECHDOG_PAIR", "0").strip().lower() not in ("0", "false", "no")
 
         self.command_stop = "CMD|3|0|$"
         self.command_forward = os.getenv("MECHDOG_CMD_FORWARD", "CMD|3|3|$")
@@ -55,6 +55,7 @@ class MechDogController:
 
     def _handle_disconnect(self, _client):
         self.connected = False
+        self.client = None
         logger.warning("MechDog BLE connection closed")
 
     async def connect(self):
@@ -85,8 +86,10 @@ class MechDogController:
     async def disconnect(self):
         async with self._connect_lock:
             if self.client is not None:
+                client = self.client
                 try:
-                    await self.client.disconnect()
+                    if client.is_connected:
+                        await client.disconnect()
                 except Exception as exc:
                     logger.warning("Error disconnecting MechDog: %s", exc)
                 finally:
@@ -107,6 +110,7 @@ class MechDogController:
 
     async def reconnect(self):
         await self.disconnect()
+        await asyncio.sleep(1.0)
         await self.connect()
 
     async def write_command(self, command):
@@ -207,16 +211,13 @@ class MechDogController:
 controller = MechDogController()
 
 
-async def try_connect_robot():
-    while True:
-        try:
-            if not (controller.client and controller.client.is_connected):
-                await controller.connect()
-        except Exception as exc:
-            controller.connected = False
-            controller.last_error = str(exc)
-            logger.warning("MechDog not connected yet: %s", exc)
-        await asyncio.sleep(5)
+async def try_connect_robot_once():
+    try:
+        await controller.connect()
+    except Exception as exc:
+        controller.connected = False
+        controller.last_error = str(exc)
+        logger.warning("Initial MechDog connection failed: %s", exc)
 
 
 async def handle_command(websocket, path=None):
@@ -286,10 +287,12 @@ async def handle_command(websocket, path=None):
 async def main():
     port = 8777
     logger.info("Starting MechDog WebSocket server on ws://127.0.0.1:%s", port)
-    connect_task = asyncio.create_task(try_connect_robot())
-    async with websockets.serve(handle_command, "127.0.0.1", port, ping_interval=None):
-        await asyncio.Future()
-    connect_task.cancel()
+    await try_connect_robot_once()
+    try:
+        async with websockets.serve(handle_command, "127.0.0.1", port, ping_interval=None):
+            await asyncio.Future()
+    finally:
+        await controller.disconnect()
 
 
 if __name__ == "__main__":
