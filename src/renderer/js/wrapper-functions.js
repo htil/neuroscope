@@ -102,6 +102,18 @@ export const WrapperFunctions = class {
     window.electronAPI.vexRight(distance);
   }
 
+  mechdog_back(distance) {
+    window.electronAPI.sendCommand({ action: "move", distance, heading: 180 });
+  }
+
+  mechdog_handshake() {
+    window.electronAPI.sendCommand({ action: "mechdog_action", type: "handshake" });
+  }
+
+  mechdog_boxing() {
+    window.electronAPI.sendCommand({ action: "mechdog_action", type: "boxing" });
+  }
+
   // VEX Kicker wrapper: forwards kicker commands to main via electronAPI
   vex_kicker(kind) {
     // Normalize kind to lowercase string ('hard'|'soft'|'place')

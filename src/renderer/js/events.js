@@ -74,6 +74,7 @@ export const Events = class {
 
   stop_program() {
     this.blockly.stop();
+    window.electronAPI.sendCommand({ action: "stop" });
     window.electronAPI.manualControl("land");
   }
 

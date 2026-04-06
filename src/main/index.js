@@ -589,7 +589,7 @@ async function createWindow() {
     tello.ccw(recent_val);
   });
 
-  //Vex commands
+  // Robot movement commands
   ipcMain.on("vex-turn-left", (event, degrees) => {
     console.log(`[VEX] Turn left ${degrees}°`);
     const turnCommand = { action: "turn_left", degrees: degrees };
@@ -603,46 +603,46 @@ async function createWindow() {
   });
 
   ipcMain.on("vex-forward", (event, distance) => {
-    console.log(`[VEX] Move forward ${distance} inches`);
+    console.log(`[${robotDisplayName}] Move forward ${distance} inches`);
     const moveCommand = { action: "move", distance: distance, heading: 0 };
     sendCommand(moveCommand);
   });
 
   ipcMain.on("vex-back", (event, distance) => {
-    console.log(`[VEX] Move back ${distance} inches`);
+    console.log(`[${robotDisplayName}] Move back ${distance} inches`);
     const moveCommand = { action: "move", distance: distance, heading: 180 };
     sendCommand(moveCommand);
   });
 
   ipcMain.on("vex-left", (event, distance) => {
-    console.log(`[VEX] Move left ${distance} inches`);
+    console.log(`[${robotDisplayName}] Move left ${distance} inches`);
     const moveCommand = { action: "move", distance: distance, heading: 270 };
     sendCommand(moveCommand);
   });
 
   ipcMain.on("vex-right", (event, distance) => {
-    console.log(`[VEX] Move right ${distance} inches`);
+    console.log(`[${robotDisplayName}] Move right ${distance} inches`);
     const moveCommand = { action: "move", distance: distance, heading: 90 };
     sendCommand(moveCommand);
   });
 
-  // VEX kicker handler
+  // Robot kicker handler
   ipcMain.on("vex-kicker", (event, type) => {
     const t = String(type || "").toLowerCase();
-    console.log(`[VEX] Kicker action: ${t}`);
+    console.log(`[${robotDisplayName}] Kicker action: ${t}`);
     const kickCommand = { action: "kicker", type: t };
     sendCommand(kickCommand);
   });
 
-  // VEX Reconnect handler
+  // Robot reconnect handler
   ipcMain.handle("vex-reconnect", async (event) => {
     // Guard: don't proceed if window is gone
     if (!win || win.isDestroyed()) {
-      console.warn('[VEX] Reconnect aborted: window destroyed');
+      console.warn(`[${robotDisplayName}] Reconnect aborted: window destroyed`);
       return { success: false, message: 'Window closed' };
     }
 
-    console.log("[VEX] Reconnect requested");
+    console.log(`[${robotDisplayName}] Reconnect requested`);
     const result = await reconnectVEX();
     return result;
   });

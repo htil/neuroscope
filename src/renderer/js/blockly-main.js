@@ -107,10 +107,13 @@ export const BlocklyMain = class {
       ccw: "rotate counter-clockwise",
       cw: "rotate clockwise",
       vex_forward: "forward",
+      mechdog_back: "back",
       vex_left: "left",
       vex_right: "right",
       vex_turn_left: "turn left",
       vex_turn_right: "turn right",
+      mechdog_handshake: "handshake",
+      mechdog_boxing: "boxing",
       controls_if: "if"
     };
 
@@ -262,6 +265,7 @@ export const BlocklyMain = class {
             );
             break;
           case "vex_forward":
+          case "mechdog_back":
           case "vex_left":
           case "vex_right":
             this.validateRequiredInput(

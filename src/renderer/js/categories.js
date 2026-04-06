@@ -47,10 +47,13 @@ export const Categories = {
     colour: 70,
     modules: [
       "vex_forward",
+      "mechdog_back",
       "vex_left",
       "vex_right",
       "vex_turn_left",
-      "vex_turn_right"
+      "vex_turn_right",
+      "mechdog_handshake",
+      "mechdog_boxing"
     ]
   },
 

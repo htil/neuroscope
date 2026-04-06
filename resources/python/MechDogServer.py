@@ -28,7 +28,9 @@ class MechDogController:
         self.command_forward = os.getenv("MECHDOG_CMD_FORWARD", "CMD|3|3|$")
         self.command_turn_right = os.getenv("MECHDOG_CMD_TURN_RIGHT", "CMD|3|1|$")
         self.command_turn_left = os.getenv("MECHDOG_CMD_TURN_LEFT", "CMD|3|5|$")
-        self.command_backward = os.getenv("MECHDOG_CMD_BACKWARD", "").strip() or None
+        self.command_backward = os.getenv("MECHDOG_CMD_BACKWARD", "CMD|3|7|$")
+        self.command_handshake = os.getenv("MECHDOG_CMD_HANDSHAKE", "CMD|2|1|7|$")
+        self.command_boxing = os.getenv("MECHDOG_CMD_BOXING", "CMD|2|1|10|$")
 
         self.move_seconds_per_unit = float(os.getenv("MECHDOG_MOVE_SECONDS_PER_UNIT", "0.15"))
         self.turn_seconds_per_90 = float(os.getenv("MECHDOG_TURN_SECONDS_PER_90", "0.7"))
@@ -198,6 +200,21 @@ class MechDogController:
         await self.write_command(command)
         return {"status": "success", "action": "raw_command", "command": command}
 
+    async def stop(self):
+        await self.write_command(self.command_stop)
+        return {"status": "success", "action": "stop"}
+
+    async def run_action(self, action_name):
+        action_map = {
+            "handshake": self.command_handshake,
+            "boxing": self.command_boxing,
+        }
+        command = action_map.get(str(action_name).strip().lower())
+        if not command:
+            raise ValueError(f"Unknown MechDog action '{action_name}'")
+        await self.write_command(command)
+        return {"status": "success", "action": "mechdog_action", "type": action_name}
+
     def get_status(self):
         return {
             "status": "ok",
@@ -248,6 +265,10 @@ async def handle_command(websocket, path=None):
                     response = await controller.turn_left(command.get("degrees", 90))
                 elif action == "turn_right":
                     response = await controller.turn_right(command.get("degrees", 90))
+                elif action == "stop":
+                    response = await controller.stop()
+                elif action == "mechdog_action":
+                    response = await controller.run_action(command.get("type", ""))
                 elif action in ("status", "get_status"):
                     response = controller.get_status()
                 elif action == "reconnect_robot":
