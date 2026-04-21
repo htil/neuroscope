@@ -155,6 +155,44 @@ export const createCustomBlocks = function () {
     return [code, Order.FUNCTION_CALL];
   };
 
+  var getMechdogBattery = {
+    type: "mechdog_battery",
+    message0: "dog battery",
+    output: "Number",
+    colour: 70,
+    tooltip: "Latest MechDog battery percentage",
+    helpUrl: ""
+  };
+
+  Blockly.Blocks["mechdog_battery"] = {
+    init: function () {
+      this.jsonInit(getMechdogBattery);
+    }
+  };
+
+  javascriptGenerator.forBlock["mechdog_battery"] = function () {
+    return ["getMechdogBattery()", Order.FUNCTION_CALL];
+  };
+
+  var getMechdogSonar = {
+    type: "mechdog_sonar",
+    message0: "dog sonar mm",
+    output: "Number",
+    colour: 70,
+    tooltip: "Latest MechDog sonar distance in millimeters",
+    helpUrl: ""
+  };
+
+  Blockly.Blocks["mechdog_sonar"] = {
+    init: function () {
+      this.jsonInit(getMechdogSonar);
+    }
+  };
+
+  javascriptGenerator.forBlock["mechdog_sonar"] = function () {
+    return ["getMechdogSonarDistance()", Order.FUNCTION_CALL];
+  };
+
   /////////
   var blockly_print = {
     message0: "print %1",

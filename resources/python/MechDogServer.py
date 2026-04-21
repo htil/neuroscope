@@ -22,6 +22,7 @@ class MechDogController:
         self.device_name_prefix = os.getenv("MECHDOG_NAME_PREFIX", "mechdog_").lower()
         self.device_address = os.getenv("MECHDOG_ADDRESS", "").strip()
         self.write_uuid = os.getenv("MECHDOG_WRITE_UUID", "0000ffe1-0000-1000-8000-00805f9b34fb")
+        self.notify_uuid = os.getenv("MECHDOG_NOTIFY_UUID", "0000ffe2-0000-1000-8000-00805f9b34fb")
         self.pair = os.getenv("MECHDOG_PAIR", "0").strip().lower() not in ("0", "false", "no")
 
         self.command_stop = "CMD|3|0|$"
@@ -31,14 +32,21 @@ class MechDogController:
         self.command_backward = os.getenv("MECHDOG_CMD_BACKWARD", "CMD|3|7|$")
         self.command_handshake = os.getenv("MECHDOG_CMD_HANDSHAKE", "CMD|2|1|7|$")
         self.command_boxing = os.getenv("MECHDOG_CMD_BOXING", "CMD|2|1|10|$")
+        self.command_battery = os.getenv("MECHDOG_CMD_BATTERY", "CMD|6|$")
+        self.command_sonar = os.getenv("MECHDOG_CMD_SONAR", "CMD|4|1|$")
 
         self.move_seconds_per_unit = float(os.getenv("MECHDOG_MOVE_SECONDS_PER_UNIT", "0.15"))
         self.turn_seconds_per_90 = float(os.getenv("MECHDOG_TURN_SECONDS_PER_90", "0.7"))
+        self.response_timeout_seconds = float(os.getenv("MECHDOG_RESPONSE_TIMEOUT_SECONDS", "3"))
 
         self.client = None
         self.connected = False
         self.device_name = None
         self.last_error = None
+        self.last_battery = None
+        self.last_sonar_distance = None
+        self._notify_started = False
+        self._response_queue = asyncio.Queue()
         self._connect_lock = asyncio.Lock()
         self._motion_lock = asyncio.Lock()
 
@@ -60,7 +68,48 @@ class MechDogController:
     def _handle_disconnect(self, _client):
         self.connected = False
         self.client = None
+        self._notify_started = False
         logger.warning("MechDog BLE connection closed")
+
+    def _handle_notification(self, _sender, data):
+        try:
+            payload = data.decode("utf-8", errors="ignore").strip()
+        except Exception:
+            payload = ""
+        if not payload:
+            return
+
+        logger.info("RX %s", payload)
+        try:
+            self._response_queue.put_nowait(payload)
+        except asyncio.QueueFull:
+            pass
+
+        parts = payload.split("|")
+        if len(parts) >= 3 and parts[0] == "CMD":
+            if parts[1] == "6":
+                try:
+                    self.last_battery = int(parts[2])
+                except ValueError:
+                    pass
+            elif parts[1] == "4":
+                try:
+                    self.last_sonar_distance = int(parts[2])
+                except ValueError:
+                    pass
+
+    async def _drain_response_queue(self):
+        while not self._response_queue.empty():
+            try:
+                self._response_queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+
+    async def _start_notifications(self):
+        if self._notify_started or not self.client:
+            return
+        await self.client.start_notify(self.notify_uuid, self._handle_notification)
+        self._notify_started = True
 
     async def connect(self):
         async with self._connect_lock:
@@ -75,6 +124,7 @@ class MechDogController:
             self.client = client
             self.connected = bool(client.is_connected)
             self.last_error = None
+            await self._start_notifications()
 
             if not self.device_name:
                 self.device_name = getattr(target, "name", None) or "MechDog"
@@ -121,6 +171,20 @@ class MechDogController:
         await self.ensure_connected()
         logger.info("TX %s", command)
         await self.client.write_gatt_char(self.write_uuid, command.encode("utf-8"), response=False)
+
+    async def query_command(self, command, matcher):
+        await self.ensure_connected()
+        await self._drain_response_queue()
+        await self.write_command(command)
+
+        timeout_at = asyncio.get_running_loop().time() + self.response_timeout_seconds
+        while True:
+            remaining = timeout_at - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                raise TimeoutError(f"Timed out waiting for MechDog response to {command}")
+            payload = await asyncio.wait_for(self._response_queue.get(), timeout=remaining)
+            if matcher(payload):
+                return payload
 
     async def pulse_command(self, command, duration_s):
         async with self._motion_lock:
@@ -215,6 +279,20 @@ class MechDogController:
         await self.write_command(command)
         return {"status": "success", "action": "mechdog_action", "type": action_name}
 
+    async def get_battery(self):
+        payload = await self.query_command(self.command_battery, lambda value: value.startswith("CMD|6|"))
+        parts = payload.split("|")
+        battery = int(parts[2])
+        self.last_battery = battery
+        return {"status": "success", "action": "battery", "battery": battery}
+
+    async def get_sonar_distance(self):
+        payload = await self.query_command(self.command_sonar, lambda value: value.startswith("CMD|4|"))
+        parts = payload.split("|")
+        distance = int(parts[2])
+        self.last_sonar_distance = distance
+        return {"status": "success", "action": "sonar", "distance_mm": distance}
+
     def get_status(self):
         return {
             "status": "ok",
@@ -223,6 +301,8 @@ class MechDogController:
             "device_name": self.device_name,
             "device_address": self.device_address,
             "last_error": self.last_error,
+            "battery": self.last_battery,
+            "sonar_distance_mm": self.last_sonar_distance,
             "timestamp": datetime.now().isoformat(),
         }
 
@@ -269,6 +349,10 @@ async def handle_command(websocket, path=None):
                     response = await controller.stop()
                 elif action == "mechdog_action":
                     response = await controller.run_action(command.get("type", ""))
+                elif action == "battery":
+                    response = await controller.get_battery()
+                elif action == "sonar":
+                    response = await controller.get_sonar_distance()
                 elif action in ("status", "get_status"):
                     response = controller.get_status()
                 elif action == "reconnect_robot":

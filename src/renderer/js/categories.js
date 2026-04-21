@@ -46,6 +46,8 @@ export const Categories = {
     name: "MechDog",
     colour: 70,
     modules: [
+      "mechdog_battery",
+      "mechdog_sonar",
       "vex_forward",
       "mechdog_back",
       "vex_left",

@@ -380,7 +380,16 @@ function attachStatusListener() {
           backendRunning: true,
           deviceName: msg.device_name,
           deviceAddress: msg.device_address,
-          lastError: msg.last_error
+          lastError: msg.last_error,
+          battery: msg.battery,
+          sonarDistanceMm: msg.sonar_distance_mm
+        });
+      } else if (msg.action === 'battery' || msg.action === 'sonar') {
+        publishRobotStatus({
+          wsConnected: true,
+          backendRunning: true,
+          battery: msg.battery,
+          sonarDistanceMm: msg.distance_mm
         });
       }
     } catch { /* ignore */ }
@@ -396,6 +405,18 @@ function pollRobotStatus() {
     ws.send(JSON.stringify({ action: 'status' }));
   } catch (err) {
     console.warn('Failed to poll status:', err);
+  }
+}
+
+function pollRobotTelemetry() {
+  if (!ws || ws.readyState !== WebSocket.OPEN || !win || win.isDestroyed()) {
+    return;
+  }
+  try {
+    ws.send(JSON.stringify({ action: 'battery' }));
+    ws.send(JSON.stringify({ action: 'sonar' }));
+  } catch (err) {
+    console.warn('Failed to poll telemetry:', err);
   }
 }
 
@@ -462,6 +483,7 @@ async function createWindow() {
   win.on("closed", () => {
     // Clear the status polling interval
     clearInterval(statusInterval);
+    clearInterval(telemetryInterval);
 
     // Close WebSocket if open
     if (ws) {
@@ -538,6 +560,7 @@ async function createWindow() {
 
   // Periodic status polling - but clear it when window closes
   const statusInterval = setInterval(pollRobotStatus, 3000);
+  const telemetryInterval = setInterval(pollRobotTelemetry, 1000);
   // NOTE: win.on("closed") handler is already defined above in createWindow()
 
   ipcMain.on("drone-up", (event, response) => {

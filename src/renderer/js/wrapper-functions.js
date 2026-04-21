@@ -58,6 +58,16 @@ export const WrapperFunctions = class {
     return Number.isFinite(v) ? v : 0;
   }
 
+  getMechdogBattery() {
+    const v = window?.mechdogTelemetry?.battery;
+    return Number.isFinite(v) ? v : 0;
+  }
+
+  getMechdogSonarDistance() {
+    const v = window?.mechdogTelemetry?.sonarDistanceMm;
+    return Number.isFinite(v) ? v : 0;
+  }
+
   drone_up(value) {
     console.log("drone up");
     window.electronAPI.droneUp(value);

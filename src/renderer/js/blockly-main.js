@@ -98,6 +98,8 @@ export const BlocklyMain = class {
       alpha: "alpha",
       beta: "beta",
       gamma: "gamma",
+      mechdog_battery: "dog battery",
+      mechdog_sonar: "dog sonar",
       print: "print",
       filter_signal: "filter signal",
       drone_up: "right",

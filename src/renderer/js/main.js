@@ -54,6 +54,27 @@ function sendCommand(command) {
 
 window.sendCommand = sendCommand;
 
+function updateMechdogSonarReadout(sonarDistanceMm) {
+  const sonarEl = document.getElementById("mechdog-sonar-readout");
+  if (!sonarEl) return;
+
+  const distance = Number(sonarDistanceMm);
+  if (!Number.isFinite(distance) || distance <= 0) {
+    sonarEl.textContent = "-- mm";
+    sonarEl.style.color = "#767676";
+    return;
+  }
+
+  sonarEl.textContent = `${distance} mm`;
+  if (distance < 200) {
+    sonarEl.style.color = "#db2828";
+  } else if (distance < 500) {
+    sonarEl.style.color = "#f2711c";
+  } else {
+    sonarEl.style.color = "#2185d0";
+  }
+}
+
 export const NeuroScope = class {
   constructor() {
     this.blocklyMain = new BlocklyMain();
@@ -66,6 +87,19 @@ export const NeuroScope = class {
 
     // Ensure a defined, numeric global for wrapper functions
     window.band_powers = { delta: 0, theta: 0, alpha: 0, beta: 0, gamma: 0 };
+    window.mechdogTelemetry = { battery: 0, sonarDistanceMm: 0 };
+
+    window.electronAPI.onVexStatus((status) => {
+      window.mechdogTelemetry = {
+        battery: Number.isFinite(Number(status?.battery)) ? Number(status.battery) : window.mechdogTelemetry.battery,
+        sonarDistanceMm: Number.isFinite(Number(status?.sonarDistanceMm))
+          ? Number(status.sonarDistanceMm)
+          : window.mechdogTelemetry.sonarDistanceMm,
+      };
+      updateMechdogSonarReadout(window.mechdogTelemetry.sonarDistanceMm);
+    });
+    window.electronAPI.requestVexStatus();
+    updateMechdogSonarReadout(window.mechdogTelemetry.sonarDistanceMm);
 
     const sanitize = (bp) => ({
       delta: Number.isFinite(Number(bp?.delta)) ? Number(bp.delta) : 0,

@@ -12,6 +12,8 @@ export const InterpreterAPI = class {
       getAlpha: this.wrapperFunctions.getAlpha,
       getBeta: this.wrapperFunctions.getBeta,
       getGamma: this.wrapperFunctions.getGamma,
+      getMechdogBattery: this.wrapperFunctions.getMechdogBattery,
+      getMechdogSonarDistance: this.wrapperFunctions.getMechdogSonarDistance,
       blockly_print: this.wrapperFunctions.blockly_print,
       drone_up: this.wrapperFunctions.drone_up,
       drone_down: this.wrapperFunctions.drone_down,
