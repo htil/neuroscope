@@ -59,7 +59,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='VEXServer',
+    name='MechDogServer',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

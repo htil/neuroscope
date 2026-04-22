@@ -97,11 +97,16 @@ function getPythonExecutable() {
     // Production: Use bundled executable
     console.log('[PYTHON] isProduction:', !isDevelopment);
     console.log('[PYTHON] process.resourcesPath:', process.resourcesPath);
-    const bundledExe = path.join(process.resourcesPath, 'python', 'VEXServer.exe');
-    console.log('[PYTHON] Checking bundled exe at:', bundledExe, 'exists:', fs.existsSync(bundledExe));
-    if (fs.existsSync(bundledExe)) {
-      console.log('[PYTHON] Using bundled VEXServer.exe (standalone executable)');
-      return { exe: bundledExe, standalone: true };
+    const exeCandidates = robotBackend === 'mechdog'
+      ? ['MechDogServer.exe', 'VEXServer.exe']
+      : ['VEXServer.exe'];
+    for (const exeName of exeCandidates) {
+      const bundledExe = path.join(process.resourcesPath, 'python', exeName);
+      console.log('[PYTHON] Checking bundled exe at:', bundledExe, 'exists:', fs.existsSync(bundledExe));
+      if (fs.existsSync(bundledExe)) {
+        console.log(`[PYTHON] Using bundled ${exeName} (standalone executable)`);
+        return { exe: bundledExe, standalone: true };
+      }
     }
     // Fallback to script with bundled python
     const bundledPython = path.join(process.resourcesPath, 'python', 'python.exe');

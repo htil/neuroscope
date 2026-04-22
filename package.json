@@ -29,9 +29,10 @@
     "build": "yarn vue:build",
     "vue:serve": "parcel ./src/renderer/index.html -p 3005 --dist-dir build/renderer",
     "vue:build": "cross-env NODE_ENV=production parcel build ./src/renderer/index.html --dist-dir build/renderer --public-url ./ --no-source-maps --no-scope-hoist",
-    "python:build": "C:/dev/repos/VexEMG/neuroscope/.venv/Scripts/pyinstaller.exe VEXServer.spec --clean --noconfirm",
-    "electron:build": "electron-builder build -c.mac.target=dir",
+    "python:build": ".\\.venv\\Scripts\\pyinstaller.exe VEXServer.spec --clean --noconfirm",
+    "electron:build": "electron-builder build --win dir",
     "build:local": "yarn build && yarn python:build && yarn electron:build",
+    "build:win": "yarn build && yarn python:build && yarn electron:build",
     "clean": "rmdir build && rmdir .cache && rmdir dist && rmdir .parcel-cache",
     "patch": "npm version patch -m \"v%s\"",
     "postversion": "git push && git push --tags",
@@ -55,8 +56,8 @@
   },
   "main": "./src/main/index.js",
   "build": {
-    "appId": "com.htil.neuroblock-emg-vex",
-    "productName": "NeuroBlock EEG for VEX",
+    "appId": "com.htil.neuroblock-eeg-mechdog",
+    "productName": "NeuroBlock EEG for MechDog",
     "compression": "maximum",
     "files": [
       "src/main/**/*",
@@ -65,8 +66,8 @@
     ],
     "extraResources": [
       {
-        "from": "dist/VEXServer.exe",
-        "to": "python/VEXServer.exe"
+        "from": "dist/MechDogServer.exe",
+        "to": "python/MechDogServer.exe"
       },
       {
         "from": "resources/python/**/*",
