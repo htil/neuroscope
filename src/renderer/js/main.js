@@ -68,7 +68,7 @@ export const NeuroScope = class {
     this.signal_handler = new Signal(512);
     this.bpBis = null;
     this.events = new Events(this.blocklyMain);
-    this.ble = new BLE(this.signal_handler.add_data.bind(this.signal_handler), "bluetooth", this.sessionConfig);
+    this.ble = new BLE(this.addDeviceData.bind(this), "bluetooth", this.sessionConfig);
     this.feature_extractor = new FeatureExtractor(256);
     this.blocklyMain.start();
     simpleTextView.initialize(this.blocklyMain);
@@ -128,6 +128,17 @@ export const NeuroScope = class {
 
     document.body.dataset.inputDevice = inputDevice.id;
     document.body.dataset.outputTarget = outputTarget.id;
+  }
+
+  addDeviceData(sample) {
+    const inputDevice = this.sessionConfig.getInputDevice();
+
+    if (inputDevice.id === "ganglion") {
+      this.signal_handler.add_data_ganglion(sample);
+      return;
+    }
+
+    this.signal_handler.add_data(sample);
   }
 };
 

@@ -1,8 +1,9 @@
 import { MuseElectronClient } from "./muse-client.js";
+import { GanglionClient } from "./ganglion-client.js";
 
 export const BLE = class {
   constructor(callback, connect_button_id = "bluetooth", sessionConfig = null) {
-    this.device = new MuseElectronClient();
+    this.device = null;
     this.callback = callback;
     this.sessionConfig = sessionConfig;
 
@@ -100,16 +101,17 @@ export const BLE = class {
       return;
     }
 
-    if (inputDevice?.id === "ganglion") {
-      window.neuroConsole?.print(
-        "Ganglion EMG is selected. Merge the Ganglion client adapter before streaming EMG data.",
-        "warning"
-      );
-    }
+    this.device?.disconnect?.();
+    this.device = inputDevice?.id === "ganglion" ? new GanglionClient() : new MuseElectronClient();
 
     await this.device.connect();
 
-    // EEG DATA
+    if (inputDevice?.id === "ganglion") {
+      this.device.readings.subscribe(this.callback);
+      window.neuroConsole?.print("Ganglion EMG stream connected.", "success");
+      return;
+    }
+
     this.device.eegReadings.subscribe(this.callback);
   }
 

@@ -98,6 +98,7 @@
   },
   "homepage": "./",
   "dependencies": {
+    "@openbci/utilities": "^1.0.0",
     "blockly": "^10.4.3",
     "d3": "^7.9.0",
     "js-interpreter": "^5.1.1",
