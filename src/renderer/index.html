@@ -7,6 +7,41 @@
   <title>NeuroBlock EEG for VEX</title>
   <!--<script src="https://cdn.jsdelivr.net/npm/danfojs@1.1.2/lib/bundle.min.js"></script>-->
   <link rel="stylesheet" href="css/semantic.min.css" />
+  <style>
+    #session-bar {
+      position: absolute;
+      left: 14px;
+      top: 12px;
+      z-index: 180;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: #ffffff;
+      border: 1px solid #d4d4d5;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    #session-summary {
+      font-weight: 700;
+      color: #1f2933;
+    }
+
+    .session-panel-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      font-weight: 700;
+      color: #333333;
+      border-bottom: 1px solid #e6e6e6;
+    }
+
+    .session-panel-body {
+      height: calc(100% - 38px);
+    }
+  </style>
   <!--<link rel="stylesheet" href="css/rickshaw.min.css" /> -->
   <script src="js/jquery-3.6.0.min.js"></script>
 
@@ -15,6 +50,11 @@
 </head>
 
 <body>
+  <div id="session-bar">
+    <span id="session-summary">Muse EEG -> VEX Robot</span>
+    <button id="session-change" class="ui mini button">Change</button>
+  </div>
+
   <div class="ui two column doubling stackable grid" style="margin: 0px !important; width: 100%; height: 100vh">
     <div class="column" style="background-color: #f2f2f2; width: 45%; position: relative; z-index: 10;">
       <div id="v" class="ui raised card centered" style="width: 100%; height: 40vh">
@@ -24,7 +64,11 @@
         <div id="3"></div>
       </div>
       <div id="bands" class="ui raised card centered" style="width: 100%; height: 40vh">
-        <!-- Console will be initialized here by JavaScript -->
+        <div class="session-panel-heading">
+          <span id="signal-panel-title">Frequency Bands</span>
+          <span class="ui tiny label" id="session-input-label">Muse EEG</span>
+        </div>
+        <div id="signal-panel-body" class="session-panel-body"></div>
       </div>
       <!-- Mode Toggle Buttons - Moved below console -->
       <div id="mode-toggle"
@@ -118,6 +162,28 @@
           display: flex;
           flex-direction: column;
         "></div>
+  </div>
+
+  <div id="session-modal" class="ui small modal">
+    <div class="header">Choose Session</div>
+    <div class="content">
+      <h4 class="ui dividing header">Input Device</h4>
+      <div id="input-device-options" class="ui buttons"></div>
+
+      <h4 class="ui dividing header" style="margin-top: 24px;">Output Target</h4>
+      <div id="output-target-options" class="ui buttons"></div>
+
+      <div class="ui message" style="margin-top: 24px;">
+        <div class="header">
+          <span id="session-input-label-modal">Session Routing</span>
+        </div>
+        <p id="session-connection-hint">Muse EEG uses Bluetooth. VEX Robot uses its Wi-Fi access point.</p>
+      </div>
+    </div>
+    <div class="actions">
+      <span class="ui left floated basic label">Output: <span id="session-output-label">VEX Robot</span></span>
+      <button id="session-start" class="ui primary button">Start Session</button>
+    </div>
   </div>
 
   <!--<h1>NeuroScope</h1>-->

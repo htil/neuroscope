@@ -15,6 +15,9 @@ import { ChannelVis } from "./channel_vis.js";
 import { BlocklyMain } from "./blockly-main.js";
 import { BandPowerVis } from "./band-power-vis.js";
 import { simpleTextView } from "./simple-text-view.js";
+import { Console } from "./console.js";
+import { SessionConfig } from "./session-config.js";
+import { SessionUI, renderSessionOptions } from "./session-ui.js";
 
 let ws;
 let wsReconnectAttempts = 0;
@@ -56,13 +59,23 @@ window.sendCommand = sendCommand;
 
 export const NeuroScope = class {
   constructor() {
+    this.sessionConfig = new SessionConfig();
+    renderSessionOptions();
+    this.sessionUI = new SessionUI(this.sessionConfig);
+    this.sessionUI.initialize();
+
     this.blocklyMain = new BlocklyMain();
     this.signal_handler = new Signal(512);
-    this.bpBis = new BandPowerVis();
+    this.bpBis = null;
     this.events = new Events(this.blocklyMain);
-    this.ble = new BLE(this.signal_handler.add_data.bind(this.signal_handler));
+    this.ble = new BLE(this.signal_handler.add_data.bind(this.signal_handler), "bluetooth", this.sessionConfig);
     this.feature_extractor = new FeatureExtractor(256);
     this.blocklyMain.start();
+    simpleTextView.initialize(this.blocklyMain);
+
+    this.sessionConfig.onChange((session, inputDevice, outputTarget) => {
+      this.applySession(inputDevice, outputTarget);
+    });
 
     // Ensure a defined, numeric global for wrapper functions
     window.band_powers = { delta: 0, theta: 0, alpha: 0, beta: 0, gamma: 0 };
@@ -76,11 +89,17 @@ export const NeuroScope = class {
     });
 
     setInterval(() => {
+      const inputDevice = this.sessionConfig.getInputDevice();
+
       // Plot EEG channels
       this.signal_handler.plot_data(0);
       this.signal_handler.plot_data(1);
       this.signal_handler.plot_data(2);
       this.signal_handler.plot_data(3);
+
+      if (inputDevice.panel !== "bands" || !this.bpBis) {
+        return;
+      }
 
       // Compute and render band power
       const data = this.signal_handler.get_data();
@@ -90,6 +109,25 @@ export const NeuroScope = class {
       window.band_powers = sanitize(band_powers);
       this.bpBis.update(window.band_powers);
     }, 400);
+  }
+
+  applySession(inputDevice, outputTarget) {
+    const title = document.getElementById("signal-panel-title");
+    if (title) {
+      title.textContent = inputDevice.panel === "bands" ? "Frequency Bands" : "Console";
+    }
+
+    if (inputDevice.panel === "bands") {
+      window.neuroConsole = null;
+      this.bpBis = new BandPowerVis();
+    } else {
+      this.bpBis = null;
+      window.neuroConsole = new Console();
+      window.neuroConsole.print(`${inputDevice.label} session ready`, "success");
+    }
+
+    document.body.dataset.inputDevice = inputDevice.id;
+    document.body.dataset.outputTarget = outputTarget.id;
   }
 };
 
