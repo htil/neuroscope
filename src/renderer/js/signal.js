@@ -45,14 +45,14 @@ export const Signal = class {
 
     const amplifiedSample = Math.abs(sourceValue * this.EMG_SIGNAL_MULTIPLIER);
     const filteredData = this.filter ? this.filter.singleStep(amplifiedSample) : amplifiedSample;
-    const displayValue = Math.abs(sourceValue * this.emg_display_multiplier).toFixed(2);
+    const displayValue = Math.abs(sourceValue * this.emg_display_multiplier);
 
     if (this.signal_value_dom && Date.now() - this.last_signal_update > this.value_refresh_delay_ms) {
-      this.signal_value_dom.textContent = displayValue;
+      this.signal_value_dom.textContent = displayValue.toFixed(2);
       this.last_signal_update = Date.now();
     }
 
-    window.filteredSample = displayValue;
+    window.filteredSample = displayValue.toFixed(2);
 
     if (!this.channels[electrode]) {
       this.channels[electrode] = [];
@@ -63,7 +63,7 @@ export const Signal = class {
       this.channels[electrode].shift();
     }
 
-    this.channels[electrode].push(filteredData);
+    this.channels[electrode].push(displayValue);
   }
 
   add_data(sample) {
@@ -106,6 +106,10 @@ export const Signal = class {
   }
 
   plot_data(electrode) {
+    if (!this.channels[electrode] || !this.channel_vis?.svgs?.[electrode]) {
+      return;
+    }
+
     //let electrode = 0;
     this.channels_d3_plot[electrode] = [];
     for (let sample in this.channels[electrode]) {

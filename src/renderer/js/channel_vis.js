@@ -4,7 +4,7 @@ export const ChannelVis = class {
   constructor() {
     this.width = window.innerWidth * 0.4;
     this.height = window.innerHeight * 0.09;
-    const signal_amplitude = 300;
+    this.signal_amplitude = 300;
     this.svgs = {};
 
     this.plot();
@@ -13,7 +13,7 @@ export const ChannelVis = class {
       .domain([0, 512])
       .range([10, this.width - 10]);
 
-    this.walkY = d3.scaleLinear().domain([-signal_amplitude, signal_amplitude]).range([50, 10]);
+    this.walkY = d3.scaleLinear().domain([-this.signal_amplitude, this.signal_amplitude]).range([this.height - 10, 10]);
 
     this.line = d3
       .line()
@@ -47,9 +47,25 @@ export const ChannelVis = class {
   }
 
   plot_external(channel_id, data) {
+    if (!this.svgs[channel_id] || !data || data.length === 0) {
+      return;
+    }
+
+    this.updateScale(data);
     //let data = await this.add_data();
     let line_data = this.line(data);
     this.svgs[channel_id].selectAll("path").attr("d", line_data);
+  }
+
+  updateScale(data) {
+    const maxValue = d3.max(data, (d) => Math.abs(Number(d.value) || 0)) || this.signal_amplitude;
+
+    if (maxValue <= this.signal_amplitude) {
+      return;
+    }
+
+    this.signal_amplitude = Math.ceil(maxValue / 50) * 50;
+    this.walkY.domain([-this.signal_amplitude, this.signal_amplitude]);
   }
 
   async add_data() {
