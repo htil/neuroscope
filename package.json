@@ -1,7 +1,7 @@
 {
   "name": "electron-vuejs-parcel",
   "description": "Neuroblock",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "author": {
     "name": "Human Technology Interaction Lab"
   },
@@ -25,12 +25,14 @@
     "main": false
   },
   "scripts": {
-    "serve": "concurrently \"cross-env BROWSER=none yarn vue:serve\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron . \"",
+    "serve": "concurrently \"cross-env BROWSER=none yarn vue:serve --port 3005\" \"wait-on http://localhost:3005 && cross-env NODE_ENV=development electron . \"",
     "build": "yarn vue:build",
-    "vue:serve": "parcel ./src/renderer/index.html -p 3000 --dist-dir build/renderer",
+    "vue:serve": "parcel ./src/renderer/index.html -p 3005 --dist-dir build/renderer",
     "vue:build": "cross-env NODE_ENV=production parcel build ./src/renderer/index.html --dist-dir build/renderer --public-url ./ --no-source-maps --no-scope-hoist",
-    "electron:build": "electron-builder build -c.mac.target=dir",
-    "build:local": "yarn build && yarn electron:build",
+    "python:build": ".\\.venv\\Scripts\\pyinstaller.exe VEXServer.spec --clean --noconfirm",
+    "electron:build": "electron-builder build --win dir",
+    "build:local": "yarn build && yarn python:build && yarn electron:build",
+    "build:win": "yarn build && yarn python:build && yarn electron:build",
     "clean": "rmdir build && rmdir .cache && rmdir dist && rmdir .parcel-cache",
     "patch": "npm version patch -m \"v%s\"",
     "postversion": "git push && git push --tags",
@@ -50,20 +52,26 @@
     "prettier": "^2.3.1",
     "sass": "^1.35.1",
     "typescript": "^4.3.2",
-    "vue": "^3.0.0",
-    "wait-on": "^5.0.0"
+    "vue": "^3.0.0"
   },
   "main": "./src/main/index.js",
   "build": {
-    "appId": "com.electron.electron-vuejs-parcel",
-    "productName": "NeuroBlock",
+    "appId": "com.htil.neuroblock-eeg-mechdog",
+    "productName": "NeuroBlock EEG for MechDog",
     "compression": "maximum",
     "files": [
       "src/main/**/*",
-      "node_modules/**/*",
+      "build/renderer/**/*",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
       {
-        "from": "build/renderer",
-        "to": "src/renderer"
+        "from": "dist/MechDogServer.exe",
+        "to": "python/MechDogServer.exe"
+      },
+      {
+        "from": "resources/python/**/*",
+        "to": "python/"
       }
     ],
     "mac": {
@@ -72,7 +80,7 @@
       "identity": null
     },
     "win": {
-            "icon": "src/renderer/icons/icon.png"
+      "icon": "src/renderer/icons/icon.png"
     },
     "dmg": {
       "contents": [
@@ -94,6 +102,8 @@
     "blockly": "^10.4.3",
     "d3": "^7.9.0",
     "js-interpreter": "^5.1.1",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "ws": "^8.18.2",
+    "wait-on": "^5.3.0"
   }
 }

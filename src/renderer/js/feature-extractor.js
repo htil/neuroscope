@@ -31,15 +31,15 @@ export const FeatureExtractor = class {
   }
 
   getRelativeBandPower(channel, band) {
-    if (!channel) return;
-    var target = this.getBandPower(channel, band).bp;
-    var delta = this.getBandPower(channel, "delta").bp;
-    var theta = this.getBandPower(channel, "theta").bp;
-    var alpha = this.getBandPower(channel, "alpha").bp;
-    var beta = this.getBandPower(channel, "beta").bp;
-    var gamma = this.getBandPower(channel, "gamma").bp;
-    //console.log({delta, theta, alpha, beta, gamma})
-    return target / (delta + theta + alpha + beta + gamma);
+    if (!channel) return 0;
+    const target = this.getBandPower(channel, band).bp;
+    const delta = this.getBandPower(channel, "delta").bp;
+    const theta = this.getBandPower(channel, "theta").bp;
+    const alpha = this.getBandPower(channel, "alpha").bp;
+    const beta = this.getBandPower(channel, "beta").bp;
+    const gamma = this.getBandPower(channel, "gamma").bp;
+    const denom = delta + theta + alpha + beta + gamma;
+    return denom > 0 ? target / denom : 0;
   }
 
   getBetaOverDelta(channel) {
