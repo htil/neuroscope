@@ -1,15 +1,19 @@
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { spawn, exec } = require('child_process');
 const path = require("path");
+const fs = require("fs");
 const tello = require("./tello.js");
+const WebSocket = require('ws');
+const waitOn = require('wait-on');
 
 const isProduction =
   process.env.NODE_ENV === "production" || !process || !process.env || !process.env.NODE_ENV;
 const isDevelopment = !isProduction;
 
 const menu = require("./menu");
-const port = 3000; // Hardcoded; needs to match webpack.development.js and package.json
+const port = 3005; // Updated to match the new port
 const selfHost = `http://localhost:${port}`;
-const MUSE_DEVICE_NAME = "Muse-98A9";
+const GANGLION_DEVICE_NAME = "Ganglion-";
 const maxSpeed = 40;
 const minSpeed = 15;
 let bleCallback = null;
@@ -18,7 +22,304 @@ let bleCallback = null;
 // be closed automatically when the JavaScript object is garbage collected.
 let win;
 
+let pythonProcess;
+const isWin = process.platform === 'win32';
+let ws = null;
+let pythonForceKillTimer = null; // timeout handle for forced kill
+let reconnectInProgress = false; // guard against overlapping reconnects
+
+function getPythonExecutable() {
+  if (isDevelopment) {
+    // Development: Use virtual environment
+    const venvPath = path.join(__dirname, '..', '..', '.venv', 'Scripts', 'python.exe');
+    console.log('[PYTHON] isDevelopment:', isDevelopment);
+    console.log('[PYTHON] Checking venv python at:', venvPath, 'exists:', fs.existsSync(venvPath));
+    if (fs.existsSync(venvPath)) {
+      return venvPath;
+    }
+    console.log('[PYTHON] Falling back to system python');
+    // Fallback to system python
+    return 'python';
+  } else {
+    // Production: Use bundled executable
+    console.log('[PYTHON] isProduction:', !isDevelopment);
+    console.log('[PYTHON] process.resourcesPath:', process.resourcesPath);
+    const bundledExe = path.join(process.resourcesPath, 'python', 'VEXServer.exe');
+    console.log('[PYTHON] Checking bundled exe at:', bundledExe, 'exists:', fs.existsSync(bundledExe));
+    if (fs.existsSync(bundledExe)) {
+      console.log('[PYTHON] Using bundled VEXServer.exe (standalone executable)');
+      return { exe: bundledExe, standalone: true };
+    }
+    // Fallback to script with bundled python
+    const bundledPython = path.join(process.resourcesPath, 'python', 'python.exe');
+    const bundledScript = path.join(process.resourcesPath, 'python', 'VEXServer.py');
+    console.log('[PYTHON] Checking bundled python at:', bundledPython, 'exists:', fs.existsSync(bundledPython));
+    console.log('[PYTHON] Checking bundled script at:', bundledScript, 'exists:', fs.existsSync(bundledScript));
+    if (fs.existsSync(bundledPython) && fs.existsSync(bundledScript)) {
+      return { exe: bundledPython, script: bundledScript };
+    }
+    // Final fallback
+    console.warn('[PYTHON] No bundled exe or python+script found. Falling back to system python');
+    return 'python';
+  }
+}
+
+function getPythonScript() {
+  if (isDevelopment) {
+    const useMock = (process.env.VEX_MOCK === '1' || String(process.env.VEX_MOCK || '').toLowerCase() === 'true');
+    const scriptName = useMock ? 'VEXServer_dev.py' : 'VEXServer.py';
+    const devPath = path.join(__dirname, '..', '..', 'resources', 'python', scriptName);
+    console.log(`[PYTHON] getPythonScript dev -> ${scriptName}:`, devPath, 'exists:', fs.existsSync(devPath));
+    return devPath;
+  } else {
+    const prodPath = path.join(process.resourcesPath, 'python', 'VEXServer.py');
+    console.log('[PYTHON] getPythonScript prod path:', prodPath, 'exists:', fs.existsSync(prodPath));
+    return prodPath;
+  }
+}
+
+async function startPythonServer() {
+  // Clear any lingering force-kill timer from a prior stop
+  if (pythonForceKillTimer) {
+    clearTimeout(pythonForceKillTimer);
+    pythonForceKillTimer = null;
+  }
+  const pythonExe = getPythonExecutable();
+  console.log('[PYTHON] Resolved python executable:', pythonExe);
+
+  try {
+    if (typeof pythonExe === 'object') {
+      if (pythonExe.standalone) {
+        // Standalone exe (e.g., PyInstaller bundle) - no script argument needed
+        console.log('[PYTHON] Spawning standalone exe:', pythonExe.exe);
+        pythonProcess = spawn(pythonExe.exe, [], { stdio: 'pipe' });
+      } else {
+        // Python interpreter + script
+        console.log('[PYTHON] Spawning bundled python + script:', pythonExe.exe, pythonExe.script);
+        pythonProcess = spawn(pythonExe.exe, [pythonExe.script], { stdio: 'pipe' });
+      }
+    } else if (typeof pythonExe === 'string' && pythonExe.endsWith('.exe') && isProduction) {
+      console.log('[PYTHON] Spawning bundled exe:', pythonExe);
+      pythonProcess = spawn(pythonExe, [], { stdio: 'pipe' });
+    } else {
+      const script = getPythonScript();
+      console.log('[PYTHON] Spawning:', pythonExe, script);
+      pythonProcess = spawn(pythonExe, [script], { stdio: 'pipe' });
+    }
+  } catch (spawnErr) {
+    console.error('[PYTHON] Spawn error:', spawnErr);
+    return; // abort start
+  }
+
+  pythonProcess?.stdout?.on('data', (data) => console.log(`PYTHON: ${data}`));
+  pythonProcess?.stderr?.on('data', (data) => console.error(`PYTHON ERROR: ${data}`));
+  pythonProcess?.on('close', (code) => {
+    console.log(`Python process exited with code ${code}`);
+    pythonProcess = null;
+  });
+
+  // Lightweight TCP poll instead of waitOn to avoid WebSocket handshake noise
+  const net = require('net');
+  const maxAttempts = 25;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const portReady = await new Promise(res => {
+      const sock = net.createConnection({ port: 8777, host: '127.0.0.1' });
+      sock.once('connect', () => { sock.end(); res(true); });
+      sock.once('error', () => { res(false); });
+      setTimeout(() => { res(false); try { sock.destroy(); } catch { } }, 300);
+    });
+    if (portReady) {
+      console.log('[PYTHON] WebSocket TCP port responsive');
+      break;
+    }
+    await new Promise(r => setTimeout(r, 200));
+    if (attempt === maxAttempts) {
+      console.warn('[PYTHON] WebSocket port not responsive after retries; proceeding anyway');
+    }
+  }
+}
+
+async function stopPythonServer() {
+  console.log('Stopping Python VEX server...');
+  if (!pythonProcess) {
+    console.log('Python process already stopped');
+    return;
+  }
+  return new Promise(resolve => {
+    if (pythonForceKillTimer) {
+      clearTimeout(pythonForceKillTimer);
+      pythonForceKillTimer = null;
+    }
+    const proc = pythonProcess;
+
+    // Check if process is already dead
+    if (proc.exitCode !== null || proc.killed) {
+      console.log('Python process already exited or killed');
+      pythonProcess = null;
+      resolve();
+      return;
+    }
+
+    const finish = (code) => {
+      if (pythonProcess === proc) pythonProcess = null;
+      console.log(`Python process stopped with code ${code}`);
+      resolve();
+    };
+    proc.once('close', finish);
+    try { proc.kill('SIGTERM'); } catch (e) { console.warn('SIGTERM failed:', e); }
+    pythonForceKillTimer = setTimeout(() => {
+      if (pythonProcess === proc) {
+        console.log('Force killing Python process (timeout)...');
+        if (isWin) {
+          try {
+            exec(`taskkill /F /PID ${proc.pid}`, (err) => {
+              if (err) console.warn('taskkill failed:', err);
+            });
+          } catch (e) { /* ignore */ }
+        } else {
+          try { proc.kill('SIGKILL'); } catch { }
+        }
+      }
+      pythonForceKillTimer = null;
+    }, 5000);
+  });
+}
+
+async function reconnectVEX() {
+  console.log('Reconnecting to VEX AIM...');
+  if (reconnectInProgress) {
+    console.log('Reconnect skipped: already in progress');
+    return { success: false, message: 'Reconnect already running' };
+  }
+  reconnectInProgress = true;
+  try {
+    // Instead of killing the Python process, just tell it to reconnect to the robot
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      console.log('Sending reconnect_robot command to Python server...');
+      ws.send(JSON.stringify({ action: 'reconnect_robot' }));
+
+      // Wait a bit for the reconnection to start
+      await new Promise(r => setTimeout(r, 1000));
+
+      // Request a status update
+      pollRobotStatus();
+
+      console.log('VEX AIM reconnection initiated');
+      return { success: true, message: 'Reconnecting to VEX AIM...' };
+    } else {
+      // WebSocket isn't connected - fall back to restarting everything
+      console.log('WebSocket not connected, restarting Python server...');
+      if (ws) { try { ws.close(); } catch { } ws = null; }
+      await stopPythonServer();
+
+      // Wait longer before restarting to ensure clean shutdown
+      await new Promise(r => setTimeout(r, 2000));
+
+      await startPythonServer();
+
+      // Wait longer after Python restart for server to be fully ready
+      await new Promise(r => setTimeout(r, 3000));
+
+      // Reconnect WebSocket with retry logic (5 attempts, 2s between each)
+      let wsConnected = false;
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        try {
+          console.log(`WebSocket connection attempt ${attempt}/5...`);
+          await createWebSocketConnection();
+          wsConnected = true;
+          console.log('✓ WebSocket reconnected successfully');
+          break;
+        } catch (err) {
+          console.warn(`WebSocket reconnection attempt ${attempt} failed:`, err.message);
+          if (attempt < 5) {
+            await new Promise(r => setTimeout(r, 2000));
+          }
+        }
+      }
+
+      if (!wsConnected) {
+        return { success: false, message: 'Failed to reconnect WebSocket after restarting Python server (5 attempts)' };
+      }
+
+      console.log('✓ VEX AIM reconnection completed');
+      return { success: true, message: 'Successfully reconnected to VEX AIM' };
+    }
+  } catch (error) {
+    console.error('Failed to reconnect to VEX AIM:', error);
+    return { success: false, message: `Reconnection failed: ${error.message}` };
+  } finally {
+    reconnectInProgress = false;
+  }
+}
+
+function createWebSocketConnection() {
+  return new Promise((resolve, reject) => {
+    let wsTimeout;
+    try {
+      ws = new WebSocket('ws://127.0.0.1:8777');
+
+      ws.on('open', function open() {
+        console.log('WebSocket connection opened');
+        clearTimeout(wsTimeout);
+        attachStatusListener();
+        resolve();
+      });
+
+      ws.on('error', function error(err) {
+        console.error('WebSocket error:', err.message);
+        clearTimeout(wsTimeout);
+        reject(err);
+      });
+
+      ws.on('close', function close() {
+        console.log('WebSocket connection closed');
+      });
+
+      // Increase timeout to 10 seconds and add detailed logging
+      wsTimeout = setTimeout(() => {
+        if (ws && ws.readyState !== WebSocket.OPEN) {
+          console.warn('WebSocket connection timeout after 10s, terminating...');
+          try { ws.terminate?.(); } catch { }
+          reject(new Error('WebSocket connection timeout (10s)'));
+        }
+      }, 10000);
+    } catch (error) {
+      clearTimeout(wsTimeout);
+      reject(error);
+    }
+  });
+}
+
+// --- Status helpers ---
+function attachStatusListener() {
+  if (!ws) return;
+  ws.on('message', (data) => {
+    try {
+      const msg = JSON.parse(data);
+      if (msg.robot_connected !== undefined) {
+        win?.webContents.send('vex-status', { wsConnected: true, robotConnected: !!msg.robot_connected });
+      }
+    } catch { /* ignore */ }
+  });
+}
+
+function pollRobotStatus() {
+  // Guard: skip if WebSocket not ready OR window destroyed
+  if (!ws || ws.readyState !== WebSocket.OPEN || !win || win.isDestroyed()) {
+    return;
+  }
+  try {
+    ws.send(JSON.stringify({ action: 'status' }));
+  } catch (err) {
+    console.warn('Failed to poll status:', err);
+  }
+}
+
 async function createWindow() {
+  // ---- Start Python VEXServer ----
+  await startPythonServer();
+  // ---- End Python VEXServer ----
+
   // If you'd like to set up auto-updating for your app,
   // I'd recommend looking at https://github.com/iffy/electron-updater-example
   // to use the method most suitable for you.
@@ -36,10 +337,16 @@ async function createWindow() {
   win = new BrowserWindow({
     width: 1200,
     height: 1000,
+    title: "NeuroBlock EEG for VEX",
     icon: path.join(__dirname, "icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js")
     }
+  });
+
+  // Add the event listener here, AFTER creating the window
+  win.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('Window failed to load:', errorDescription);
   });
 
   // Load the url of the dev server if in development mode
@@ -47,8 +354,7 @@ async function createWindow() {
   if (isDevelopment) {
     win.loadURL(selfHost);
   } else {
-    //win.loadURL(`${Protocol.scheme}://rse/index.html`);
-    win.loadURL(`file://${path.join(__dirname, "../renderer/index.html")}`);
+    win.loadFile(path.join(__dirname, "../../build/renderer/index.html"));
   }
 
   // Only do these things when in development
@@ -56,7 +362,7 @@ async function createWindow() {
     // Reload
     try {
       require("electron-reloader")(module);
-    } catch (_) {}
+    } catch (_) { }
     // Errors are thrown if the dev tools are opened
     // before the DOM is ready
     win.webContents.once("dom-ready", async () => {
@@ -70,9 +376,16 @@ async function createWindow() {
 
   // Emitted when the window is closed.
   win.on("closed", () => {
-    // Dereference the window object, usually you would store windows
-    // in an array if your app supports multi windows, this is the time
-    // when you should delete the corresponding element.
+    // Clear the status polling interval
+    clearInterval(statusInterval);
+
+    // Close WebSocket if open
+    if (ws) {
+      try { ws.close(); } catch { }
+      ws = null;
+    }
+
+    // Dereference the window object
     win = null;
   });
 
@@ -125,33 +438,57 @@ async function createWindow() {
     }
   });
 
+  function sendCommand(command) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(command));
+      console.log("Command sent:", command);
+    } else {
+      console.error('WebSocket not connected, cannot send command:', command);
+    }
+  }
+
+  // Initialize WebSocket connection
+  createWebSocketConnection().catch(err => {
+    console.error('Failed to establish initial WebSocket connection:', err);
+  });
+
+  // Periodic status polling - but clear it when window closes
+  const statusInterval = setInterval(pollRobotStatus, 3000);
+  // NOTE: win.on("closed") handler is already defined above in createWindow()
+
   ipcMain.on("drone-up", (event, response) => {
     let recent_val = parseInt(response);
-    let upVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-    console.log("drone up", upVal, "sent", response);
-    tello.up(upVal);
+    let rightVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
+    console.log("Sphero right", rightVal, "sent", response);
+    const moveCommand = { action: "move", distance: response, heading: 90 };//For Vex
+    sendCommand(moveCommand);
   });
 
   ipcMain.on("drone-down", (event, response) => {
     let recent_val = parseInt(response);
     let downVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-    console.log("drone down", downVal, "sent", response);
-    tello.down(downVal);
+    console.log("Sphero Left", downVal, "sent", response);
+    const moveCommand = { action: "move", distance: response, heading: 270 };//For Vex
+    sendCommand(moveCommand);
   });
 
   ipcMain.on("drone-forward", (event, response) => {
     let recent_val = parseInt(response);
-    _maxSpeed = 80;
-    let val = recent_val > _maxSpeed ? _maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-    console.log("drone forward", val, "sent", response);
-    tello.forward(val);
+    let forwardVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
+    console.log("drone forward", forwardVal, "sent", response);
+    const moveCommand = { action: "move", distance: response, heading: 0 };//For Vex
+    sendCommand(moveCommand);
   });
 
   ipcMain.on("drone-back", (event, response) => {
     let recent_val = parseInt(response);
-    let val = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-    console.log("drone back", val, "sent", response);
-    tello.back(val);
+    let backVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
+    console.log("drone back", backVal, "sent", response);
+    // let val = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
+    // console.log("drone back", val, "sent", response);
+    const moveCommand = { action: "move", distance: response, heading: 180 };//For Vex
+    sendCommand(moveCommand);
+    // tello.back(val);
   });
 
   ipcMain.on("cw", (event, response) => {
@@ -168,29 +505,90 @@ async function createWindow() {
     tello.ccw(recent_val);
   });
 
+  //Vex commands
+  ipcMain.on("vex-turn-left", (event, degrees) => {
+    console.log(`[VEX] Turn left ${degrees}°`);
+    const turnCommand = { action: "turn_left", degrees: degrees };
+    sendCommand(turnCommand);
+  });
+
+  ipcMain.on("vex-turn-right", (event, degrees) => {
+    console.log(`[VEX] Turn right ${degrees}°`);
+    const turnCommand = { action: "turn_right", degrees: degrees };
+    sendCommand(turnCommand);
+  });
+
+  ipcMain.on("vex-forward", (event, distance) => {
+    console.log(`[VEX] Move forward ${distance} inches`);
+    const moveCommand = { action: "move", distance: distance, heading: 0 };
+    sendCommand(moveCommand);
+  });
+
+  ipcMain.on("vex-back", (event, distance) => {
+    console.log(`[VEX] Move back ${distance} inches`);
+    const moveCommand = { action: "move", distance: distance, heading: 180 };
+    sendCommand(moveCommand);
+  });
+
+  ipcMain.on("vex-left", (event, distance) => {
+    console.log(`[VEX] Move left ${distance} inches`);
+    const moveCommand = { action: "move", distance: distance, heading: 270 };
+    sendCommand(moveCommand);
+  });
+
+  ipcMain.on("vex-right", (event, distance) => {
+    console.log(`[VEX] Move right ${distance} inches`);
+    const moveCommand = { action: "move", distance: distance, heading: 90 };
+    sendCommand(moveCommand);
+  });
+
+  // VEX kicker handler
+  ipcMain.on("vex-kicker", (event, type) => {
+    const t = String(type || "").toLowerCase();
+    console.log(`[VEX] Kicker action: ${t}`);
+    const kickCommand = { action: "kicker", type: t };
+    sendCommand(kickCommand);
+  });
+
+  // VEX Reconnect handler
+  ipcMain.handle("vex-reconnect", async (event) => {
+    // Guard: don't proceed if window is gone
+    if (!win || win.isDestroyed()) {
+      console.warn('[VEX] Reconnect aborted: window destroyed');
+      return { success: false, message: 'Window closed' };
+    }
+
+    console.log("[VEX] Reconnect requested");
+    const result = await reconnectVEX();
+    return result;
+  });
+
+  // Manual status request from renderer
+  ipcMain.on('vex-status-request', () => pollRobotStatus());
+
   let isUp = false;
 
-  ipcMain.on("manual-control", (event, response) => {
-    //console.log("index", response);
-    switch (response) {
-      case "takeoff":
-        isUp = true;
-        tello.takeoff();
-        break;
-      case "land":
-        isUp = true;
-        tello.land();
-        break;
-      case "up":
-        tello.up(20);
-        break;
-      case "down":
-        tello.down(20);
-        break;
-      default:
-        break;
-    }
-  });
+  // ipcMain.on("manual-control", (event, response) => {
+  //   //console.log("index", response);
+  //   switch (response) {
+  //     case "takeoff":
+  //       isUp = true;
+  //       tello.takeoff();
+  //       break;
+  //     case "land":
+  //       isUp = true;
+  //       tello.land();
+  //       break;
+  //     case "up":
+  //       tello.up(20);
+  //       break;
+  //     case "down":
+  //       tello.down(20);
+  //       break;
+  //     default:
+  //       break;
+  //   }
+  // });
 
   ipcMain.on("control-signal", (event, response) => {
     /*
@@ -208,6 +606,11 @@ async function createWindow() {
       console.log("Go Down");
     }
     */
+  });
+
+  ipcMain.on("send-command", (event, command) => {
+    console.log("Received command from renderer:", command);
+    sendCommand(command); // Use the existing sendCommand function
   });
 }
 
@@ -323,4 +726,63 @@ ipcMain.on("toMain", (event, { data }) => {
   const reply = data * 2;
   event.reply("fromMain", reply);
   //win.webContents.send("fromMain", reply);
+});
+
+// Cleanup Python process on app quit
+app.on('before-quit', async (e) => {
+  e.preventDefault();
+
+  // Stop status polling immediately
+  if (ws) {
+    try { ws.close(); } catch { }
+    ws = null;
+  }
+
+  if (pythonProcess) {
+    console.log('Terminating Python process before quit...');
+    await stopPythonServer();
+  }
+  app.exit(0);
+});
+
+app.on('window-all-closed', async () => {
+  // Stop status polling
+  if (ws) {
+    try { ws.close(); } catch { }
+    ws = null;
+  }
+
+  if (pythonProcess) {
+    console.log('Terminating Python process on window close...');
+    await stopPythonServer();
+  }
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+// Also handle process signals and exit to avoid orphaned Python server
+process.on('SIGINT', () => {
+  console.log('SIGINT received, stopping Python...');
+  stopPythonServer().finally(() => process.exit(0));
+});
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, stopping Python...');
+  stopPythonServer().finally(() => process.exit(0));
+});
+
+process.on('exit', () => {
+  console.log('Process exiting, force-killing Python if needed...');
+  if (pythonProcess) {
+    try {
+      if (isWin) {
+        exec(`taskkill /F /PID ${pythonProcess.pid}`, (err) => {
+          if (err) console.warn('Final taskkill failed:', err);
+        });
+      } else {
+        pythonProcess.kill('SIGKILL');
+      }
+    } catch (e) { console.warn('Final kill failed:', e); }
+  }
 });

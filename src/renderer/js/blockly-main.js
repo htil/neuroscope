@@ -9,19 +9,33 @@ import Interpreter from "js-interpreter";
 import { InterpreterAPI } from "./interpreter-api.js";
 
 Blockly.setLocale(locale);
-let { cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_drone } = Categories;
+let { cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_drone, cat_vex } = Categories;
 
 export const BlocklyMain = class {
   constructor() {
     createCustomBlocks();
     this.interpreter = null;
-    this.runner = null; // may need to use window here
+    this.runner = null;
     this.latestCode = "";
 
-    let _toolbox = new Toolbox([cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_drone]);
+    // let cat_robot = {
+    //   name: "Robot Controls",
+    //   colour: 160,
+    //   modules: ["move", "led_control"]
+    // };
+
+    let _toolbox = new Toolbox([
+      cat_logic,
+      cat_loops,
+      cat_math,
+      cat_sep,
+      cat_data,
+      cat_drone,
+      cat_vex
+    ]);
 
     this.workspace = Blockly.inject("blocklyDiv", {
-      toolbox: _toolbox.toString()
+      toolbox: _toolbox.toString(),
     });
 
     this.registerCustomToolbox();
@@ -114,7 +128,10 @@ export const BlocklyMain = class {
   registerCustomToolbox = () => {
     // Triggers everytime category opens
     this.workspace.registerToolboxCategoryCallback("DATA", (ws) => {
-      return this.createCustomToolBox(["filter_signal"]);
+      return this.createCustomToolBox([
+        "filter_signal",
+        "muscle_energy",
+      ]);
     });
   };
 

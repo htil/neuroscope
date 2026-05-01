@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Block to Text Converter Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+        }
+
+        .result {
+            background: #f5f5f5;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        .pass {
+            color: green;
+        }
+
+        .fail {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Block to Text Converter Test</h1>
+
+    <div class="test-section">
+        <h2>Test 1: Basic Converter Functionality</h2>
+        <div id="test1-result" class="result">Running test...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Generated Code Example</h2>
+        <pre id="code-example" class="result">Loading...</pre>
+    </div>
+
+    <script type="module">
+        import { BlockToTextConverter } from '../src/renderer/js/block-to-text-converter.js';
+
+        // Mock Blockly workspace for testing
+        class MockWorkspace {
+            getTopBlocks(ordered) {
+                return [
+                    new MockBlock('print', { VALUE: '"Hello World"' }),
+                    new MockBlock('wait_seconds', { seconds: '2' })
+                ];
+            }
+        }
+
+        class MockBlock {
+            constructor(type, fields = {}, inputs = {}) {
+                this.type = type;
+                this.fields = fields;
+                this.inputs = inputs;
+                this.disabled = false;
+                this.nextConnection = null;
+            }
+
+            getFieldValue(name) {
+                return this.fields[name] || null;
+            }
+
+            getInputTargetBlock(name) {
+                return this.inputs[name] || null;
+            }
+
+            getNextBlock() {
+                return this.nextConnection;
+            }
+        }
+
+        // Test 1: Basic functionality
+        try {
+            const converter = new BlockToTextConverter();
+            const mockWorkspace = new MockWorkspace();
+            const result = converter.convertWorkspace(mockWorkspace);
+
+            document.getElementById('test1-result').innerHTML =
+                '<span class="pass">✓ PASS</span> - Converter initialized and ran successfully';
+
+            document.getElementById('code-example').textContent = result;
+        } catch (error) {
+            document.getElementById('test1-result').innerHTML =
+                '<span class="fail">✗ FAIL</span> - Error: ' + error.message;
+            document.getElementById('code-example').textContent = 'Error generating code';
+        }
+    </script>
+</body>
+
+</html>

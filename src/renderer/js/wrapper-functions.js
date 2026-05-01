@@ -25,27 +25,37 @@ export const WrapperFunctions = class {
   }
 
   blockly_print(text) {
-    console.log(text);
+    // Use the console if available, otherwise fall back to browser console
+    if (window.neuroConsole) {
+      window.neuroConsole.print(text, 'output');
+    } else {
+      console.log(text);
+    }
   }
 
   getDelta() {
-    return window.band_powers.delta;
+    const v = window?.band_powers?.delta;
+    return Number.isFinite(v) ? v : 0;
   }
 
   getTheta() {
-    return window.band_powers.theta;
+    const v = window?.band_powers?.theta;
+    return Number.isFinite(v) ? v : 0;
   }
 
   getAlpha() {
-    return window.band_powers.alpha;
+    const v = window?.band_powers?.alpha;
+    return Number.isFinite(v) ? v : 0;
   }
 
   getBeta() {
-    return window.band_powers.beta;
+    const v = window?.band_powers?.beta;
+    return Number.isFinite(v) ? v : 0;
   }
 
   getGamma() {
-    return window.band_powers.gamma;
+    const v = window?.band_powers?.gamma;
+    return Number.isFinite(v) ? v : 0;
   }
 
   drone_up(value) {
@@ -66,6 +76,43 @@ export const WrapperFunctions = class {
   drone_back(value) {
     console.log("drone back");
     window.electronAPI.droneBack(value);
+  }
+
+  vex_turn_left(degrees) {
+    window.electronAPI.vexTurnLeft(degrees);
+  }
+
+  vex_turn_right(degrees) {
+    window.electronAPI.vexTurnRight(degrees);
+  }
+
+  vex_forward(distance) {
+    window.electronAPI.vexForward(distance);
+  }
+
+  vex_back(distance) {
+    window.electronAPI.vexBack(distance);
+  }
+
+  vex_left(distance) {
+    window.electronAPI.vexLeft(distance);
+  }
+
+  vex_right(distance) {
+    window.electronAPI.vexRight(distance);
+  }
+
+  // VEX Kicker wrapper: forwards kicker commands to main via electronAPI
+  vex_kicker(kind) {
+    // Normalize kind to lowercase string ('hard'|'soft'|'place')
+    const k = String(kind || "").toLowerCase();
+    // Use dedicated IPC channel (vex-kicker) for consistency & logging
+    if (window.electronAPI && typeof window.electronAPI.vexKicker === 'function') {
+      window.electronAPI.vexKicker(k);
+    } else {
+      // Fallback to generic command if alias missing (defensive)
+      window.electronAPI.sendCommand({ action: "kicker", type: k });
+    }
   }
 
   ccw(value) {

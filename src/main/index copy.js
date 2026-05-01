@@ -52,7 +52,7 @@ async function createWindow() {
     // Reload
     try {
       require("electron-reloader")(module);
-    } catch (_) {}
+    } catch (_) { }
     // Errors are thrown if the dev tools are opened
     // before the DOM is ready
     win.webContents.once("dom-ready", async () => {

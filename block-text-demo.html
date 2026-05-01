@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>NeuroScope Block-to-Text Converter Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .demo-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .buttons {
+            margin: 10px 0;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        #output {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            min-height: 200px;
+        }
+
+        .example-blocks {
+            background: #e9ecef;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        h2 {
+            color: #666;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🚀 NeuroScope Block-to-Text Converter Demo</h1>
+        <p>This demo shows how visual blocks can be converted to readable Python-like text code.</p>
+
+        <div class="demo-section">
+            <h2>📝 Example Conversion</h2>
+            <div class="example-blocks">
+                <strong>Visual Blocks (simulated):</strong><br>
+                📦 Print "Starting EMG analysis"<br>
+                📦 Get Alpha Power from signal<br>
+                📦 If alpha_power > 0.7<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;📦 VEX Move Forward 10<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;📦 Print "High alpha detected!"<br>
+                📦 Wait 2 seconds<br>
+                📦 Print "Analysis complete"
+            </div>
+
+            <div class="buttons">
+                <button class="btn btn-primary" onclick="demonstrateBasicConversion()">
+                    🔄 Convert Basic Example
+                </button>
+                <button class="btn btn-primary" onclick="demonstrateComplexConversion()">
+                    🔄 Convert Complex Example
+                </button>
+                <button class="btn btn-success" onclick="downloadCode()">
+                    💾 Download Generated Code
+                </button>
+            </div>
+
+            <h3>Generated Python Code:</h3>
+            <div id="output">Click "Convert" to see the generated code...</div>
+        </div>
+
+        <div class="demo-section">
+            <h2>🧪 Test Results</h2>
+            <div id="test-results">Running tests...</div>
+        </div>
+    </div>
+
+    <script>
+        // Mock converter implementation for demo
+        class DemoBlockToTextConverter {
+            convertBasicExample() {
+                return `# Generated from Blockly visual programming
+# This code represents your visual blocks as text
+
+print("Starting EMG analysis")
+alpha_power = get_alpha_power(signal)
+
+if alpha_power > 0.7:
+    vex.move_forward(10)
+    print("High alpha detected!")
+
+wait(2)
+print("Analysis complete")`;
+            }
+
+            convertComplexExample() {
+                return `# Generated from Blockly visual programming
+# This code represents your visual blocks as text
+
+print("Advanced EMG Control System")
+
+# Signal processing loop
+for i in range(100):
+    # Get multiple frequency bands
+    delta = get_delta_power(signal)
+    theta = get_theta_power(signal)
+    alpha = get_alpha_power(signal)
+    beta = get_beta_power(signal)
+    
+    # Filter signal for muscle artifacts
+    filtered_signal = filter_signal(signal, 1, 50)
+    muscle_energy = get_muscle_energy(filtered_signal)
+    
+    # Robot control based on brain state
+    if alpha > 0.6 and beta < 0.3:
+        print("Relaxed state detected - gentle movement")
+        vex.move(distance=5, direction=0)
+        robot.led_on("blue")
+    elif beta > 0.7:
+        print("Focused state detected - precise movement")  
+        vex.turn_left(45)
+        robot.led_on("green")
+    elif muscle_energy > 0.8:
+        print("Muscle tension detected - stop movement")
+        robot.led_on("red")
+        wait(1)
+    
+    # Safety check
+    if i % 10 == 0:
+        print(f"Cycle {i}: Alpha={alpha:.2f}, Beta={beta:.2f}")
+    
+    wait(0.1)
+
+print("Control session completed")`;
+            }
+        }
+
+        const converter = new DemoBlockToTextConverter();
+        let currentCode = '';
+
+        function demonstrateBasicConversion() {
+            currentCode = converter.convertBasicExample();
+            document.getElementById('output').textContent = currentCode;
+            showSuccess('Basic blocks converted to Python code!');
+        }
+
+        function demonstrateComplexConversion() {
+            currentCode = converter.convertComplexExample();
+            document.getElementById('output').textContent = currentCode;
+            showSuccess('Complex control system converted to Python code!');
+        }
+
+        function downloadCode() {
+            if (!currentCode.trim()) {
+                alert('No code to download. Please convert some blocks first!');
+                return;
+            }
+
+            const blob = new Blob([currentCode], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'neuroscope_generated_code.py';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showSuccess('Code downloaded as neuroscope_generated_code.py!');
+        }
+
+        function showSuccess(message) {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = `<div style="color: green; font-weight: bold;">✅ ${message}</div>`;
+        }
+
+        // Run initial tests
+        function runTests() {
+            const results = [];
+
+            try {
+                const basicCode = converter.convertBasicExample();
+                if (basicCode.includes('print(') && basicCode.includes('get_alpha_power')) {
+                    results.push('✅ Basic conversion test passed');
+                } else {
+                    results.push('❌ Basic conversion test failed');
+                }
+            } catch (e) {
+                results.push('❌ Basic conversion test error: ' + e.message);
+            }
+
+            try {
+                const complexCode = converter.convertComplexExample();
+                if (complexCode.includes('for i in range') && complexCode.includes('vex.move')) {
+                    results.push('✅ Complex conversion test passed');
+                } else {
+                    results.push('❌ Complex conversion test failed');
+                }
+            } catch (e) {
+                results.push('❌ Complex conversion test error: ' + e.message);
+            }
+
+            document.getElementById('test-results').innerHTML = results.join('<br>');
+        }
+
+        // Run tests when page loads
+        setTimeout(runTests, 500);
+    </script>
+</body>
+
+</html>

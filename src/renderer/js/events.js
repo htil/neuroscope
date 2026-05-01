@@ -11,6 +11,7 @@ export const Events = class {
 
     this.create_event("run", this.execute_code.bind(this));
     this.create_event("saveFile", this.download_code.bind(this));
+    this.create_event("exportCode", this.export_text_code.bind(this));
     this.load_input = this.eById("file_handler");
 
     let handleOnChangeUpload = (e) => {
@@ -29,6 +30,7 @@ export const Events = class {
     });
 
     this.create_event("stopButton", this.stop_program.bind(this));
+    this.create_event("vex-reconnect", this.reconnect_vex.bind(this));
 
     window.electronAPI.getDroneState((event, drone_state) => {
       console.log(drone_state);
@@ -102,5 +104,69 @@ export const Events = class {
   drone_land() {
     console.log("land");
     window.electronAPI.manualControl("land");
+  }
+
+  /* VEX Events */
+  async reconnect_vex() {
+    console.log("Reconnecting to VEX AIM...");
+
+    // Change button to show loading state
+    const button = document.getElementById("vex-reconnect");
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<i class="spinner loading icon"></i>';
+    button.disabled = true;
+
+    // Log to console
+    if (window.neuroConsole) {
+      window.neuroConsole.print("Attempting to reconnect to VEX AIM...", 'info');
+    }
+
+    try {
+      const result = await window.electronAPI.vexReconnect();
+
+      if (result.success) {
+        if (window.neuroConsole) {
+          window.neuroConsole.print("Successfully reconnected to VEX AIM", 'success');
+        }
+        console.log("VEX reconnection successful");
+      } else {
+        if (window.neuroConsole) {
+          window.neuroConsole.print(`Reconnection failed: ${result.message}`, 'error');
+        }
+        console.error("VEX reconnection failed:", result.message);
+      }
+    } catch (error) {
+      const errorMsg = `Error during VEX reconnection: ${error.message}`;
+      if (window.neuroConsole) {
+        window.neuroConsole.print(errorMsg, 'error');
+      }
+      console.error(errorMsg);
+    } finally {
+      // Restore button state
+      button.innerHTML = originalHTML;
+      button.disabled = false;
+    }
+  }
+
+  export_text_code() {
+    // Import the coding mode manager
+    import('./coding-mode-manager.js').then(({ codingModeManager }) => {
+      if (codingModeManager && codingModeManager.isInitialized) {
+        codingModeManager.exportCode('py');
+      } else {
+        console.warn('Coding mode manager not initialized. Using fallback export.');
+        // Fallback: export Blockly-generated JavaScript
+        const code = this.blockly.getLatestCode();
+        const blob = new Blob([code], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'neuroscope_blocks.js';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    });
   }
 };

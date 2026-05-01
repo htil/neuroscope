@@ -24,12 +24,12 @@ export const Categories = {
   cat_data: {
     name: "Data",
     colour: 330,
-    modules: ["delta", "theta", "alpha", "beta", "gamma", "print"]
+    modules: ["delta", "theta", "alpha", "beta", "gamma", "print", "muscle_energy"]
   },
 
   cat_drone: {
     name: "Drone",
-    colour: 70,
+    colour: 230,
     modules: [
       "drone_up",
       "drone_down",
@@ -39,6 +39,21 @@ export const Categories = {
       "ccw",
       "takeoff",
       "land"
+    ]
+  },
+
+  // Add the new VEX category
+  cat_vex: {
+    name: "VEX",
+    colour: 70,
+    modules: [
+      "vex_forward",
+      "vex_back",
+      "vex_left",
+      "vex_right",
+      "vex_kicker",
+      "vex_turn_left",
+      "vex_turn_right"
     ]
   },
 

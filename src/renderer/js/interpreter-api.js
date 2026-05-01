@@ -3,6 +3,8 @@ import { WrapperFunctions } from "./wrapper-functions";
 export const InterpreterAPI = class {
   constructor(workspace) {
     this.wrapperFunctions = new WrapperFunctions(workspace);
+
+    // Expose all the functions you need inside Blockly’s interpreter
     this.nativeFunctions = {
       highlightBlock: this.wrapperFunctions.highlightWrapper,
       getDelta: this.wrapperFunctions.getDelta,
@@ -18,8 +20,21 @@ export const InterpreterAPI = class {
       ccw: this.wrapperFunctions.ccw,
       cw: this.wrapperFunctions.cw,
       takeoff: this.wrapperFunctions.takeoff,
-      land: this.wrapperFunctions.land
+      land: this.wrapperFunctions.land,
+      // VEX commands
+      vex_turn_left: this.wrapperFunctions.vex_turn_left,
+      vex_turn_right: this.wrapperFunctions.vex_turn_right,
+      vex_forward: this.wrapperFunctions.vex_forward,
+      vex_back: this.wrapperFunctions.vex_back,
+      vex_left: this.wrapperFunctions.vex_left,
+      vex_right: this.wrapperFunctions.vex_right,
+      // Kicker
+      vex_kicker: this.wrapperFunctions.vex_kicker,
+
+      // ← NEW: expose muscle energy from window.filteredSample
+      getMuscleEnergy: () => window.filteredSample
     };
+
     this.asyncFunctions = {
       filterSignal: this.wrapperFunctions.filterSignalWrapper,
       wait_seconds: this.wrapperFunctions.wait_seconds
@@ -27,19 +42,21 @@ export const InterpreterAPI = class {
   }
 
   init(interpreter, globalObject) {
-    for (let [key, value] of Object.entries(this.nativeFunctions)) {
+    // Bind native (synchronous) functions
+    for (const [name, fn] of Object.entries(this.nativeFunctions)) {
       interpreter.setProperty(
         globalObject,
-        key,
-        interpreter.createNativeFunction(value.bind(this.wrapperFunctions))
+        name,
+        interpreter.createNativeFunction(fn.bind(this.wrapperFunctions))
       );
     }
 
-    for (let [key, value] of Object.entries(this.asyncFunctions)) {
+    // Bind async functions (returning promises)
+    for (const [name, fn] of Object.entries(this.asyncFunctions)) {
       interpreter.setProperty(
         globalObject,
-        key,
-        interpreter.createAsyncFunction(value.bind(this.wrapperFunctions))
+        name,
+        interpreter.createAsyncFunction(fn.bind(this.wrapperFunctions))
       );
     }
   }
