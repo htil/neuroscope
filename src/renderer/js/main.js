@@ -118,6 +118,11 @@ export const NeuroScope = class {
       title.textContent = inputDevice.panel === "bands" ? "Frequency Bands" : "Console";
     }
 
+    const muscleEnergyReadout = document.getElementById("muscle-energy-readout");
+    if (muscleEnergyReadout) {
+      muscleEnergyReadout.style.display = inputDevice.id === "ganglion" ? "block" : "none";
+    }
+
     if (inputDevice.panel === "bands") {
       window.neuroConsole = null;
       this.bpBis = new BandPowerVis();
