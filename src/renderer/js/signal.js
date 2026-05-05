@@ -37,6 +37,16 @@ export const Signal = class {
     // This will come with a computational cost.
   }
 
+  setDeviceMode(deviceId) {
+    this.channels = {};
+    this.channels_d3_plot = {};
+    this.channel_vis.configure(
+      deviceId === "ganglion"
+        ? { channelCount: 1, heightRatio: 0.36 }
+        : { channelCount: 4, heightRatio: 0.09 }
+    );
+  }
+
   add_data_ganglion(sample, electrode = 0) {
     const sourceValue = Number(sample?.data?.[0]);
     if (!Number.isFinite(sourceValue)) {

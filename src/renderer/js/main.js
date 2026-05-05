@@ -90,12 +90,11 @@ export const NeuroScope = class {
 
     setInterval(() => {
       const inputDevice = this.sessionConfig.getInputDevice();
+      const channelCount = inputDevice.id === "ganglion" ? 1 : 4;
 
-      // Plot EEG channels
-      this.signal_handler.plot_data(0);
-      this.signal_handler.plot_data(1);
-      this.signal_handler.plot_data(2);
-      this.signal_handler.plot_data(3);
+      for (let channel = 0; channel < channelCount; channel += 1) {
+        this.signal_handler.plot_data(channel);
+      }
 
       if (inputDevice.panel !== "bands" || !this.bpBis) {
         return;
@@ -112,6 +111,8 @@ export const NeuroScope = class {
   }
 
   applySession(inputDevice, outputTarget) {
+    this.signal_handler.setDeviceMode(inputDevice.id);
+
     const title = document.getElementById("signal-panel-title");
     if (title) {
       title.textContent = inputDevice.panel === "bands" ? "Frequency Bands" : "Console";
