@@ -155,6 +155,44 @@ export const createCustomBlocks = function () {
     return [code, Order.FUNCTION_CALL];
   };
 
+  var getMechdogBattery = {
+    type: "mechdog_battery",
+    message0: "dog battery",
+    output: "Number",
+    colour: 70,
+    tooltip: "Latest MechDog battery percentage",
+    helpUrl: ""
+  };
+
+  Blockly.Blocks["mechdog_battery"] = {
+    init: function () {
+      this.jsonInit(getMechdogBattery);
+    }
+  };
+
+  javascriptGenerator.forBlock["mechdog_battery"] = function () {
+    return ["getMechdogBattery()", Order.FUNCTION_CALL];
+  };
+
+  var getMechdogSonar = {
+    type: "mechdog_sonar",
+    message0: "dog sonar mm",
+    output: "Number",
+    colour: 70,
+    tooltip: "Latest MechDog sonar distance in millimeters",
+    helpUrl: ""
+  };
+
+  Blockly.Blocks["mechdog_sonar"] = {
+    init: function () {
+      this.jsonInit(getMechdogSonar);
+    }
+  };
+
+  javascriptGenerator.forBlock["mechdog_sonar"] = function () {
+    return ["getMechdogSonarDistance()", Order.FUNCTION_CALL];
+  };
+
   /////////
   var blockly_print = {
     message0: "print %1",
@@ -637,6 +675,74 @@ Blockly.Blocks["vex_right"] = {
 javascriptGenerator.forBlock["vex_right"] = function (block, generator) {
   var distance = generator.valueToCode(block, "distance", Order.ATOMIC) || "4";
   return `vex_right(${distance});\n`;
+};
+
+// MechDog Back Block
+var mechdogBack = {
+  type: "mechdog_back",
+  message0: "back %1 inches",
+  args0: [
+    {
+      type: "input_value",
+      name: "distance",
+      check: "Number"
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 70
+};
+
+Blockly.Blocks["mechdog_back"] = {
+  init: function () {
+    this.jsonInit(mechdogBack);
+  }
+};
+
+javascriptGenerator.forBlock["mechdog_back"] = function (block, generator) {
+  var distance = generator.valueToCode(block, "distance", Order.ATOMIC) || "4";
+  return `mechdog_back(${distance});\n`;
+};
+
+const MECHDOG_HANDSHAKE_WAIT_SECONDS = 4;
+const MECHDOG_BOXING_WAIT_SECONDS = 8;
+
+var mechdogHandshake = {
+  type: "mechdog_handshake",
+  message0: "handshake",
+  args0: [],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 70
+};
+
+Blockly.Blocks["mechdog_handshake"] = {
+  init: function () {
+    this.jsonInit(mechdogHandshake);
+  }
+};
+
+javascriptGenerator.forBlock["mechdog_handshake"] = function () {
+  return `mechdog_handshake();\nwait_seconds(${MECHDOG_HANDSHAKE_WAIT_SECONDS});\n`;
+};
+
+var mechdogBoxing = {
+  type: "mechdog_boxing",
+  message0: "boxing",
+  args0: [],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 70
+};
+
+Blockly.Blocks["mechdog_boxing"] = {
+  init: function () {
+    this.jsonInit(mechdogBoxing);
+  }
+};
+
+javascriptGenerator.forBlock["mechdog_boxing"] = function () {
+  return `mechdog_boxing();\nwait_seconds(${MECHDOG_BOXING_WAIT_SECONDS});\n`;
 };
 
 // VEX Kicker Block

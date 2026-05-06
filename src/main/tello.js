@@ -76,6 +76,8 @@ module.exports.getState = () => getTello().getState();
 module.exports.up = (value) => getTello().send_message("up " + value);
 module.exports.down = (value) => getTello().send_message("down " + value);
 module.exports.forward = (value) => getTello().send_message("forward " + value);
+module.exports.right = (value) => getTello().send_message("right " + value);
+module.exports.left = (value) => getTello().send_message("left " + value);
 module.exports.cw = (value) => getTello().send_message("cw " + value);
 module.exports.ccw = (value) => getTello().send_message("ccw " + value);
 module.exports.back = (value) => getTello().send_message("back " + value);

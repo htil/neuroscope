@@ -9,7 +9,7 @@ import Interpreter from "js-interpreter";
 import { InterpreterAPI } from "./interpreter-api.js";
 
 Blockly.setLocale(locale);
-let { cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_drone, cat_vex } = Categories;
+let { cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_drone, cat_vex, cat_mechdog } = Categories;
 
 export const BlocklyMain = class {
   constructor() {
@@ -26,15 +26,7 @@ export const BlocklyMain = class {
     //   modules: ["move", "led_control"]
     // };
 
-    let _toolbox = new Toolbox([
-      cat_logic,
-      cat_loops,
-      cat_math,
-      cat_sep,
-      cat_data,
-      cat_drone,
-      cat_vex
-    ]);
+    let _toolbox = new Toolbox(this.getToolboxCategories("vex"));
 
     this.workspace = Blockly.inject("blocklyDiv", {
       toolbox: _toolbox.toString(),
@@ -42,6 +34,31 @@ export const BlocklyMain = class {
 
     this.registerCustomToolbox();
   }
+
+  getToolboxCategories = (outputTarget = "vex") => {
+    const robotCategory =
+      outputTarget === "mechdog"
+        ? cat_mechdog
+        : outputTarget === "tello"
+          ? cat_drone
+          : outputTarget === "none"
+            ? null
+            : cat_vex;
+
+    return [
+      cat_logic,
+      cat_loops,
+      cat_math,
+      cat_sep,
+      cat_data,
+      ...(robotCategory ? [robotCategory] : [])
+    ];
+  };
+
+  setOutputTarget = (outputTarget) => {
+    const toolbox = new Toolbox(this.getToolboxCategories(outputTarget));
+    this.workspace.updateToolbox(toolbox.toString());
+  };
 
   createCustomToolBox = (blocks) => {
     let res = [];
@@ -110,6 +127,9 @@ export const BlocklyMain = class {
       vex_back: "back",
       vex_left: "left",
       vex_right: "right",
+      mechdog_back: "back",
+      mechdog_handshake: "handshake",
+      mechdog_boxing: "boxing",
       controls_if: "if"
     };
 
@@ -264,6 +284,7 @@ export const BlocklyMain = class {
           case "vex_back":
           case "vex_left":
           case "vex_right":
+          case "mechdog_back":
             this.validateRequiredInput(
               errors,
               block,

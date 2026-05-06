@@ -29,7 +29,9 @@
     "build": "yarn vue:build",
     "vue:serve": "parcel ./src/renderer/index.html -p 3005 --dist-dir build/renderer",
     "vue:build": "cross-env NODE_ENV=production parcel build ./src/renderer/index.html --dist-dir build/renderer --public-url ./ --no-source-maps --no-scope-hoist",
-    "python:build": "pyinstaller VEXServer.spec --clean --noconfirm",
+    "python:build:vex": "pyinstaller VEXServer.spec --clean --noconfirm",
+    "python:build:mechdog": "pyinstaller MechDogServer.spec --clean --noconfirm",
+    "python:build": "yarn python:build:vex && yarn python:build:mechdog",
     "electron:build": "electron-builder build -c.mac.target=dir",
     "build:local": "yarn build && yarn python:build && yarn electron:build",
     "clean": "rmdir build && rmdir .cache && rmdir dist && rmdir .parcel-cache",
@@ -67,6 +69,10 @@
       {
         "from": "dist/VEXServer.exe",
         "to": "python/VEXServer.exe"
+      },
+      {
+        "from": "dist/MechDogServer.exe",
+        "to": "python/MechDogServer.exe"
       },
       {
         "from": "resources/python/**/*",

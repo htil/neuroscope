@@ -58,6 +58,16 @@ export const WrapperFunctions = class {
     return Number.isFinite(v) ? v : 0;
   }
 
+  getMechdogBattery() {
+    const v = window?.mechdogTelemetry?.battery;
+    return Number.isFinite(v) ? v : 0;
+  }
+
+  getMechdogSonarDistance() {
+    const v = window?.mechdogTelemetry?.sonarDistanceMm;
+    return Number.isFinite(v) ? v : 0;
+  }
+
   drone_up(value) {
     console.log("drone up");
     window.electronAPI.droneUp(value);
@@ -100,6 +110,18 @@ export const WrapperFunctions = class {
 
   vex_right(distance) {
     window.electronAPI.vexRight(distance);
+  }
+
+  mechdog_back(distance) {
+    window.electronAPI.sendCommand({ action: "move", distance, heading: 180 });
+  }
+
+  mechdog_handshake() {
+    window.electronAPI.sendCommand({ action: "mechdog_action", type: "handshake" });
+  }
+
+  mechdog_boxing() {
+    window.electronAPI.sendCommand({ action: "mechdog_action", type: "boxing" });
   }
 
   // VEX Kicker wrapper: forwards kicker commands to main via electronAPI

@@ -42,6 +42,7 @@ process.once("loaded", () => {
       }
     },
     requestVexStatus: () => ipcRenderer.send('vex-status-request'),
+    setOutputTarget: (target) => ipcRenderer.send("set-output-target", target),
     cw: (response) => ipcRenderer.send("cw", response),
     ccw: (response) => ipcRenderer.send("ccw", response),
     getBLEList: (callback) => ipcRenderer.on("device_list", callback),

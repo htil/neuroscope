@@ -27,6 +27,17 @@ const isWin = process.platform === 'win32';
 let ws = null;
 let pythonForceKillTimer = null; // timeout handle for forced kill
 let reconnectInProgress = false; // guard against overlapping reconnects
+let robotBackend = "vex";
+
+function getRobotDisplayName() {
+  if (robotBackend === "mechdog") return "MechDog";
+  if (robotBackend === "tello") return "Tello";
+  return "VEX AIM";
+}
+
+function usesPythonBackend() {
+  return robotBackend === "vex" || robotBackend === "mechdog";
+}
 
 function getPythonExecutable() {
   if (isDevelopment) {
@@ -44,15 +55,18 @@ function getPythonExecutable() {
     // Production: Use bundled executable
     console.log('[PYTHON] isProduction:', !isDevelopment);
     console.log('[PYTHON] process.resourcesPath:', process.resourcesPath);
-    const bundledExe = path.join(process.resourcesPath, 'python', 'VEXServer.exe');
-    console.log('[PYTHON] Checking bundled exe at:', bundledExe, 'exists:', fs.existsSync(bundledExe));
-    if (fs.existsSync(bundledExe)) {
-      console.log('[PYTHON] Using bundled VEXServer.exe (standalone executable)');
-      return { exe: bundledExe, standalone: true };
+    const exeCandidates = robotBackend === "mechdog" ? ["MechDogServer.exe", "VEXServer.exe"] : ["VEXServer.exe"];
+    for (const exeName of exeCandidates) {
+      const bundledExe = path.join(process.resourcesPath, 'python', exeName);
+      console.log('[PYTHON] Checking bundled exe at:', bundledExe, 'exists:', fs.existsSync(bundledExe));
+      if (fs.existsSync(bundledExe)) {
+        console.log(`[PYTHON] Using bundled ${exeName} (standalone executable)`);
+        return { exe: bundledExe, standalone: true };
+      }
     }
     // Fallback to script with bundled python
     const bundledPython = path.join(process.resourcesPath, 'python', 'python.exe');
-    const bundledScript = path.join(process.resourcesPath, 'python', 'VEXServer.py');
+    const bundledScript = path.join(process.resourcesPath, 'python', getPythonScriptName());
     console.log('[PYTHON] Checking bundled python at:', bundledPython, 'exists:', fs.existsSync(bundledPython));
     console.log('[PYTHON] Checking bundled script at:', bundledScript, 'exists:', fs.existsSync(bundledScript));
     if (fs.existsSync(bundledPython) && fs.existsSync(bundledScript)) {
@@ -67,18 +81,31 @@ function getPythonExecutable() {
 function getPythonScript() {
   if (isDevelopment) {
     const useMock = (process.env.VEX_MOCK === '1' || String(process.env.VEX_MOCK || '').toLowerCase() === 'true');
-    const scriptName = useMock ? 'VEXServer_dev.py' : 'VEXServer.py';
+    const scriptName = useMock && robotBackend === "vex" ? 'VEXServer_dev.py' : getPythonScriptName();
     const devPath = path.join(__dirname, '..', '..', 'resources', 'python', scriptName);
     console.log(`[PYTHON] getPythonScript dev -> ${scriptName}:`, devPath, 'exists:', fs.existsSync(devPath));
     return devPath;
   } else {
-    const prodPath = path.join(process.resourcesPath, 'python', 'VEXServer.py');
+    const prodPath = path.join(process.resourcesPath, 'python', getPythonScriptName());
     console.log('[PYTHON] getPythonScript prod path:', prodPath, 'exists:', fs.existsSync(prodPath));
     return prodPath;
   }
 }
 
+function getPythonScriptName() {
+  return robotBackend === "mechdog" ? "MechDogServer.py" : "VEXServer.py";
+}
+
 async function startPythonServer() {
+  if (!usesPythonBackend()) {
+    console.log(`[PYTHON] ${getRobotDisplayName()} does not use the Python robot backend`);
+    return;
+  }
+
+  if (pythonProcess) {
+    return;
+  }
+
   // Clear any lingering force-kill timer from a prior stop
   if (pythonForceKillTimer) {
     clearTimeout(pythonForceKillTimer);
@@ -140,7 +167,7 @@ async function startPythonServer() {
 }
 
 async function stopPythonServer() {
-  console.log('Stopping Python VEX server...');
+  console.log(`Stopping Python ${getRobotDisplayName()} server...`);
   if (!pythonProcess) {
     console.log('Python process already stopped');
     return;
@@ -185,8 +212,41 @@ async function stopPythonServer() {
   });
 }
 
+async function stopRobotBackend() {
+  if (ws) {
+    try { ws.close(); } catch { }
+    ws = null;
+  }
+
+  await stopPythonServer();
+}
+
+async function startRobotBackend() {
+  if (!usesPythonBackend()) {
+    await stopRobotBackend();
+    return;
+  }
+
+  await startPythonServer();
+  await createWebSocketConnection();
+  pollRobotStatus();
+}
+
+async function switchOutputTarget(target) {
+  const nextBackend = target === "mechdog" ? "mechdog" : target === "tello" ? "tello" : target === "none" ? "none" : "vex";
+
+  if (nextBackend === robotBackend) {
+    return;
+  }
+
+  console.log(`[ROBOT] Switching output target from ${robotBackend} to ${nextBackend}`);
+  await stopRobotBackend();
+  robotBackend = nextBackend;
+  await startRobotBackend();
+}
+
 async function reconnectVEX() {
-  console.log('Reconnecting to VEX AIM...');
+  console.log(`Reconnecting to ${getRobotDisplayName()}...`);
   if (reconnectInProgress) {
     console.log('Reconnect skipped: already in progress');
     return { success: false, message: 'Reconnect already running' };
@@ -204,8 +264,8 @@ async function reconnectVEX() {
       // Request a status update
       pollRobotStatus();
 
-      console.log('VEX AIM reconnection initiated');
-      return { success: true, message: 'Reconnecting to VEX AIM...' };
+      console.log(`${getRobotDisplayName()} reconnection initiated`);
+      return { success: true, message: `Reconnecting to ${getRobotDisplayName()}...` };
     } else {
       // WebSocket isn't connected - fall back to restarting everything
       console.log('WebSocket not connected, restarting Python server...');
@@ -241,11 +301,11 @@ async function reconnectVEX() {
         return { success: false, message: 'Failed to reconnect WebSocket after restarting Python server (5 attempts)' };
       }
 
-      console.log('✓ VEX AIM reconnection completed');
-      return { success: true, message: 'Successfully reconnected to VEX AIM' };
+      console.log(`✓ ${getRobotDisplayName()} reconnection completed`);
+      return { success: true, message: `Successfully reconnected to ${getRobotDisplayName()}` };
     }
   } catch (error) {
-    console.error('Failed to reconnect to VEX AIM:', error);
+    console.error(`Failed to reconnect to ${getRobotDisplayName()}:`, error);
     return { success: false, message: `Reconnection failed: ${error.message}` };
   } finally {
     reconnectInProgress = false;
@@ -297,7 +357,22 @@ function attachStatusListener() {
     try {
       const msg = JSON.parse(data);
       if (msg.robot_connected !== undefined) {
-        win?.webContents.send('vex-status', { wsConnected: true, robotConnected: !!msg.robot_connected });
+        win?.webContents.send('vex-status', {
+          wsConnected: true,
+          robotConnected: !!msg.robot_connected,
+          backend: robotBackend,
+          battery: msg.battery,
+          sonarDistanceMm: msg.sonar_distance_mm,
+          deviceName: msg.device_name,
+          lastError: msg.last_error
+        });
+      } else if (msg.action === "battery" || msg.action === "sonar") {
+        win?.webContents.send('vex-status', {
+          wsConnected: true,
+          backend: robotBackend,
+          battery: msg.battery,
+          sonarDistanceMm: msg.distance_mm
+        });
       }
     } catch { /* ignore */ }
   });
@@ -312,6 +387,19 @@ function pollRobotStatus() {
     ws.send(JSON.stringify({ action: 'status' }));
   } catch (err) {
     console.warn('Failed to poll status:', err);
+  }
+}
+
+function pollRobotTelemetry() {
+  if (robotBackend !== "mechdog" || !ws || ws.readyState !== WebSocket.OPEN || !win || win.isDestroyed()) {
+    return;
+  }
+
+  try {
+    ws.send(JSON.stringify({ action: "battery" }));
+    ws.send(JSON.stringify({ action: "sonar" }));
+  } catch (err) {
+    console.warn("Failed to poll MechDog telemetry:", err);
   }
 }
 
@@ -378,6 +466,7 @@ async function createWindow() {
   win.on("closed", () => {
     // Clear the status polling interval
     clearInterval(statusInterval);
+    clearInterval(telemetryInterval);
 
     // Close WebSocket if open
     if (ws) {
@@ -448,18 +537,23 @@ async function createWindow() {
   }
 
   // Initialize WebSocket connection
-  createWebSocketConnection().catch(err => {
-    console.error('Failed to establish initial WebSocket connection:', err);
+  startRobotBackend().catch(err => {
+    console.error('Failed to establish initial robot backend connection:', err);
   });
 
   // Periodic status polling - but clear it when window closes
   const statusInterval = setInterval(pollRobotStatus, 3000);
+  const telemetryInterval = setInterval(pollRobotTelemetry, 1000);
   // NOTE: win.on("closed") handler is already defined above in createWindow()
 
   ipcMain.on("drone-up", (event, response) => {
     let recent_val = parseInt(response);
     let rightVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     console.log("Sphero right", rightVal, "sent", response);
+    if (robotBackend === "tello") {
+      tello.right(rightVal);
+      return;
+    }
     const moveCommand = { action: "move", distance: response, heading: 90 };//For Vex
     sendCommand(moveCommand);
   });
@@ -468,6 +562,10 @@ async function createWindow() {
     let recent_val = parseInt(response);
     let downVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     console.log("Sphero Left", downVal, "sent", response);
+    if (robotBackend === "tello") {
+      tello.left(downVal);
+      return;
+    }
     const moveCommand = { action: "move", distance: response, heading: 270 };//For Vex
     sendCommand(moveCommand);
   });
@@ -476,6 +574,10 @@ async function createWindow() {
     let recent_val = parseInt(response);
     let forwardVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     console.log("drone forward", forwardVal, "sent", response);
+    if (robotBackend === "tello") {
+      tello.forward(forwardVal);
+      return;
+    }
     const moveCommand = { action: "move", distance: response, heading: 0 };//For Vex
     sendCommand(moveCommand);
   });
@@ -484,6 +586,10 @@ async function createWindow() {
     let recent_val = parseInt(response);
     let backVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     console.log("drone back", backVal, "sent", response);
+    if (robotBackend === "tello") {
+      tello.back(backVal);
+      return;
+    }
     // let val = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     // console.log("drone back", val, "sent", response);
     const moveCommand = { action: "move", distance: response, heading: 180 };//For Vex
@@ -565,6 +671,12 @@ async function createWindow() {
 
   // Manual status request from renderer
   ipcMain.on('vex-status-request', () => pollRobotStatus());
+
+  ipcMain.on("set-output-target", (event, target) => {
+    switchOutputTarget(String(target || "vex")).catch((error) => {
+      console.error("Failed to switch output target:", error);
+    });
+  });
 
   let isUp = false;
 

@@ -57,6 +57,23 @@ export const Categories = {
     ]
   },
 
+  cat_mechdog: {
+    name: "MechDog",
+    colour: 70,
+    modules: [
+      "mechdog_battery",
+      "mechdog_sonar",
+      "vex_forward",
+      "mechdog_back",
+      "vex_left",
+      "vex_right",
+      "vex_turn_left",
+      "vex_turn_right",
+      "mechdog_handshake",
+      "mechdog_boxing"
+    ]
+  },
+
   cat_vars: {
     name: "Variables",
     colour: 100,

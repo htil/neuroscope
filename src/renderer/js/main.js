@@ -77,6 +77,30 @@ export const NeuroScope = class {
       this.applySession(inputDevice, outputTarget);
     });
 
+    if (window.electronAPI?.onVexStatus) {
+      window.electronAPI.onVexStatus((status) => {
+        window.mechdogTelemetry = {
+          battery: Number(status?.battery),
+          sonarDistanceMm: Number(status?.sonarDistanceMm)
+        };
+
+        const dot = document.getElementById("vex-status-dot");
+        if (!dot) return;
+
+        dot.className = "ui empty circular label";
+        if (!status?.wsConnected) {
+          dot.classList.add("grey");
+          dot.title = "Robot backend: disconnected";
+        } else if (!status?.robotConnected) {
+          dot.classList.add("yellow");
+          dot.title = "Robot backend connected, robot not connected";
+        } else {
+          dot.classList.add("green");
+          dot.title = "Robot connected";
+        }
+      });
+    }
+
     // Ensure a defined, numeric global for wrapper functions
     window.band_powers = { delta: 0, theta: 0, alpha: 0, beta: 0, gamma: 0 };
 
@@ -134,6 +158,11 @@ export const NeuroScope = class {
 
     document.body.dataset.inputDevice = inputDevice.id;
     document.body.dataset.outputTarget = outputTarget.id;
+    this.blocklyMain.setOutputTarget(outputTarget.id);
+
+    if (window.electronAPI?.setOutputTarget) {
+      window.electronAPI.setOutputTarget(outputTarget.id);
+    }
   }
 
   addDeviceData(sample) {

@@ -12,6 +12,8 @@ export const InterpreterAPI = class {
       getAlpha: this.wrapperFunctions.getAlpha,
       getBeta: this.wrapperFunctions.getBeta,
       getGamma: this.wrapperFunctions.getGamma,
+      getMechdogBattery: this.wrapperFunctions.getMechdogBattery,
+      getMechdogSonarDistance: this.wrapperFunctions.getMechdogSonarDistance,
       blockly_print: this.wrapperFunctions.blockly_print,
       drone_up: this.wrapperFunctions.drone_up,
       drone_down: this.wrapperFunctions.drone_down,
@@ -28,6 +30,9 @@ export const InterpreterAPI = class {
       vex_back: this.wrapperFunctions.vex_back,
       vex_left: this.wrapperFunctions.vex_left,
       vex_right: this.wrapperFunctions.vex_right,
+      mechdog_back: this.wrapperFunctions.mechdog_back,
+      mechdog_handshake: this.wrapperFunctions.mechdog_handshake,
+      mechdog_boxing: this.wrapperFunctions.mechdog_boxing,
       // Kicker
       vex_kicker: this.wrapperFunctions.vex_kicker,
 
