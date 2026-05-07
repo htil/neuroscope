@@ -6,13 +6,23 @@ class Tello {
     this.io_port = 8889;
     this.state_port = 8890;
     this.host = "192.168.10.1";
+    this.commandSocketReady = false;
+    this.stateSocketReady = false;
     this.server = dgram.createSocket("udp4");
     this.state_info = dgram.createSocket("udp4");
     //this.state_info.bind(this.state_port);
-    this.server.bind(9000);
+    this.server.on("error", (err) => {
+      console.warn("[Tello] Command UDP socket error:", err.message);
+    });
+    this.server.bind(9000, () => {
+      this.commandSocketReady = true;
+    });
     this.server.on("message", this._on_message);
     this.state = {};
     //this.state_info.on("message", this._on_state);
+    this.state_info.on("error", (err) => {
+      console.warn("[Tello] State UDP socket error:", err.message);
+    });
     this.state_info.on("message", (message, remote) => {
       // remote: { address: '192.168.10.1', family: 'IPv4', port: 8889, size: 127 }
       // message: <Buffer 70 69 74 63 68 ... >
@@ -23,7 +33,9 @@ class Tello {
       }
       //console.log(this.state);
     });
-    this.state_info.bind(8890, "0.0.0.0");
+    this.state_info.bind(8890, "0.0.0.0", () => {
+      this.stateSocketReady = true;
+    });
   }
 
   _on_state(msg, info) {
@@ -39,7 +51,7 @@ class Tello {
   send_message(message_text) {
     let message = Buffer.from(message_text);
     this.server.send(message, 0, message.length, this.io_port, this.host, function (err, bytes) {
-      if (err) throw err;
+      if (err) console.warn("[Tello] Failed to send command:", err.message);
     });
   }
 

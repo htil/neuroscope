@@ -96,6 +96,20 @@ function getPythonScriptName() {
   return robotBackend === "mechdog" ? "MechDogServer.py" : "VEXServer.py";
 }
 
+async function isRobotBackendPortReady() {
+  const net = require('net');
+  return new Promise(res => {
+    const sock = net.createConnection({ port: 8777, host: '127.0.0.1' });
+    const done = (ready) => {
+      try { sock.destroy(); } catch { }
+      res(ready);
+    };
+    sock.once('connect', () => done(true));
+    sock.once('error', () => done(false));
+    setTimeout(() => done(false), 300);
+  });
+}
+
 async function startPythonServer() {
   if (!usesPythonBackend()) {
     console.log(`[PYTHON] ${getRobotDisplayName()} does not use the Python robot backend`);
@@ -103,6 +117,11 @@ async function startPythonServer() {
   }
 
   if (pythonProcess) {
+    return;
+  }
+
+  if (await isRobotBackendPortReady()) {
+    console.log('[PYTHON] Reusing existing robot backend on ws://127.0.0.1:8777');
     return;
   }
 
@@ -146,15 +165,9 @@ async function startPythonServer() {
   });
 
   // Lightweight TCP poll instead of waitOn to avoid WebSocket handshake noise
-  const net = require('net');
   const maxAttempts = 25;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const portReady = await new Promise(res => {
-      const sock = net.createConnection({ port: 8777, host: '127.0.0.1' });
-      sock.once('connect', () => { sock.end(); res(true); });
-      sock.once('error', () => { res(false); });
-      setTimeout(() => { res(false); try { sock.destroy(); } catch { } }, 300);
-    });
+    const portReady = await isRobotBackendPortReady();
     if (portReady) {
       console.log('[PYTHON] WebSocket TCP port responsive');
       break;
@@ -515,6 +528,9 @@ async function createWindow() {
   });
 
   setInterval(() => {
+    if (robotBackend !== "tello") {
+      return;
+    }
     //console.log(tello.getState());
     let drone_state = tello.getState();
     win.webContents.send("drone_state", drone_state);
