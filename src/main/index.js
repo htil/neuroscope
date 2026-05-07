@@ -527,7 +527,65 @@ async function createWindow() {
     }
   });
 
+  function parseCommandNumber(value, fallback) {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  function clampTelloMove(value) {
+    const parsed = parseCommandNumber(value, minSpeed);
+    return Math.max(minSpeed, Math.min(maxSpeed, parsed));
+  }
+
+  function sendTelloCommand(command) {
+    const action = String(command && command.action ? command.action : "").toLowerCase();
+
+    if (action === "move") {
+      const heading = Number(command.heading);
+      const distance = clampTelloMove(command.distance);
+
+      if (heading === 0) tello.forward(distance);
+      else if (heading === 180) tello.back(distance);
+      else if (heading === 90) tello.right(distance);
+      else if (heading === 270) tello.left(distance);
+      else console.warn("[Tello] Unsupported move heading:", command);
+      return;
+    }
+
+    if (action === "turn_left") {
+      tello.ccw(parseCommandNumber(command.degrees, 90));
+      return;
+    }
+
+    if (action === "turn_right") {
+      tello.cw(parseCommandNumber(command.degrees, 90));
+      return;
+    }
+
+    if (action === "takeoff") {
+      tello.takeoff();
+      return;
+    }
+
+    if (action === "land") {
+      tello.land();
+      return;
+    }
+
+    console.warn("[Tello] Unsupported command:", command);
+  }
+
   function sendCommand(command) {
+    if (robotBackend === "none") {
+      console.warn("No output target selected; ignoring command:", command);
+      return;
+    }
+
+    if (robotBackend === "tello") {
+      sendTelloCommand(command);
+      return;
+    }
+
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(command));
       console.log("Command sent:", command);
@@ -547,44 +605,40 @@ async function createWindow() {
   // NOTE: win.on("closed") handler is already defined above in createWindow()
 
   ipcMain.on("drone-up", (event, response) => {
-    let recent_val = parseInt(response);
-    let rightVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-    console.log("Sphero right", rightVal, "sent", response);
+    let rightVal = clampTelloMove(response);
+    console.log("drone right", rightVal, "sent", response);
     if (robotBackend === "tello") {
       tello.right(rightVal);
       return;
     }
-    const moveCommand = { action: "move", distance: response, heading: 90 };//For Vex
+    const moveCommand = { action: "move", distance: parseCommandNumber(response, 4), heading: 90 };//For Vex
     sendCommand(moveCommand);
   });
 
   ipcMain.on("drone-down", (event, response) => {
-    let recent_val = parseInt(response);
-    let downVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-    console.log("Sphero Left", downVal, "sent", response);
+    let downVal = clampTelloMove(response);
+    console.log("drone left", downVal, "sent", response);
     if (robotBackend === "tello") {
       tello.left(downVal);
       return;
     }
-    const moveCommand = { action: "move", distance: response, heading: 270 };//For Vex
+    const moveCommand = { action: "move", distance: parseCommandNumber(response, 4), heading: 270 };//For Vex
     sendCommand(moveCommand);
   });
 
   ipcMain.on("drone-forward", (event, response) => {
-    let recent_val = parseInt(response);
-    let forwardVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
+    let forwardVal = clampTelloMove(response);
     console.log("drone forward", forwardVal, "sent", response);
     if (robotBackend === "tello") {
       tello.forward(forwardVal);
       return;
     }
-    const moveCommand = { action: "move", distance: response, heading: 0 };//For Vex
+    const moveCommand = { action: "move", distance: parseCommandNumber(response, 4), heading: 0 };//For Vex
     sendCommand(moveCommand);
   });
 
   ipcMain.on("drone-back", (event, response) => {
-    let recent_val = parseInt(response);
-    let backVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
+    let backVal = clampTelloMove(response);
     console.log("drone back", backVal, "sent", response);
     if (robotBackend === "tello") {
       tello.back(backVal);
@@ -592,23 +646,31 @@ async function createWindow() {
     }
     // let val = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     // console.log("drone back", val, "sent", response);
-    const moveCommand = { action: "move", distance: response, heading: 180 };//For Vex
+    const moveCommand = { action: "move", distance: parseCommandNumber(response, 4), heading: 180 };//For Vex
     sendCommand(moveCommand);
     // tello.back(val);
   });
 
   ipcMain.on("cw", (event, response) => {
-    let recent_val = parseInt(response);
+    let recent_val = parseCommandNumber(response, 90);
     //let val = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     console.log("cw", recent_val, "sent", response);
-    tello.cw(recent_val);
+    if (robotBackend === "tello") {
+      tello.cw(recent_val);
+      return;
+    }
+    sendCommand({ action: "turn_right", degrees: recent_val });
   });
 
   ipcMain.on("ccw", (event, response) => {
-    let recent_val = parseInt(response);
+    let recent_val = parseCommandNumber(response, 90);
     //let val = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     console.log("ccw", recent_val, "sent", response);
-    tello.ccw(recent_val);
+    if (robotBackend === "tello") {
+      tello.ccw(recent_val);
+      return;
+    }
+    sendCommand({ action: "turn_left", degrees: recent_val });
   });
 
   //Vex commands
@@ -680,27 +742,23 @@ async function createWindow() {
 
   let isUp = false;
 
-  // ipcMain.on("manual-control", (event, response) => {
-  //   //console.log("index", response);
-  //   switch (response) {
-  //     case "takeoff":
-  //       isUp = true;
-  //       tello.takeoff();
-  //       break;
-  //     case "land":
-  //       isUp = true;
-  //       tello.land();
-  //       break;
-  //     case "up":
-  //       tello.up(20);
-  //       break;
-  //     case "down":
-  //       tello.down(20);
-  //       break;
-  //     default:
-  //       break;
-  //   }
-  // });
+  ipcMain.on("manual-control", (event, response) => {
+    const command = String(response || "").toLowerCase();
+
+    if (command === "takeoff") {
+      isUp = true;
+      sendCommand({ action: "takeoff" });
+      return;
+    }
+
+    if (command === "land") {
+      isUp = false;
+      sendCommand({ action: "land" });
+      return;
+    }
+
+    console.warn("Unsupported manual control command:", response);
+  });
 
   ipcMain.on("control-signal", (event, response) => {
     /*

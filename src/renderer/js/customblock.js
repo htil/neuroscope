@@ -378,7 +378,7 @@ javascriptGenerator.forBlock["drone_back"] = function (block, generator) {
 /* ccw() */
 var ccw = {
   type: "ccw",
-  message0: "rotate counter-clockwise %1 cm",
+  message0: "rotate counter-clockwise %1 degrees",
   args0: [{ type: "input_value", name: "value", check: "Number" }],
   previousStatement: null,
   nextStatement: null,
@@ -401,7 +401,7 @@ javascriptGenerator.forBlock["ccw"] = function (block, generator) {
 /* cw() */
 var cw = {
   type: "cw",
-  message0: "rotate clockwise %1 cm",
+  message0: "rotate clockwise %1 degrees",
   args0: [{ type: "input_value", name: "value", check: "Number" }],
   previousStatement: null,
   nextStatement: null,
