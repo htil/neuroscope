@@ -53,6 +53,74 @@
       margin-left: 4px;
       font-variant-numeric: tabular-nums;
     }
+
+    #keyboard-control-panel {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 6;
+      width: 190px;
+      padding: 10px;
+      display: none;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #d4d4d5;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      color: #1f2933;
+    }
+
+    body[data-input-device="keyboard"] #keyboard-control-panel {
+      display: block;
+    }
+
+    .keyboard-control-header {
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .keyboard-control-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 5px;
+    }
+
+    .keyboard-control-key {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 28px;
+      padding: 4px 6px;
+      border: 1px solid #e0e1e2;
+      border-radius: 4px;
+      background: #f8f8f8;
+      font-size: 12px;
+    }
+
+    .keyboard-keycap {
+      min-width: 42px;
+      padding: 2px 5px;
+      border: 1px solid #c7c7c7;
+      border-bottom-width: 2px;
+      border-radius: 3px;
+      background: #ffffff;
+      font-family: "Courier New", monospace;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .keyboard-control-key.pressed,
+    .keyboard-control-key.sent {
+      border-color: #2185d0;
+      background: #eaf4ff;
+    }
+
+    #keyboard-control-status {
+      margin-top: 8px;
+      min-height: 18px;
+      font-size: 11px;
+      color: #4b5563;
+    }
   </style>
   <!--<link rel="stylesheet" href="css/rickshaw.min.css" /> -->
   <script src="js/jquery-3.6.0.min.js"></script>
@@ -72,6 +140,7 @@
         <div id="1"></div>
         <div id="2"></div>
         <div id="3"></div>
+        <div id="keyboard-control-panel"></div>
       </div>
       <div id="bands" class="ui raised card centered" style="width: 100%; height: 40vh">
         <div class="session-panel-heading">
