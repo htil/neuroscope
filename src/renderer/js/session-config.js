@@ -49,7 +49,7 @@ const STORAGE_KEY = "neuroblock.session";
 
 export const DEFAULT_SESSION = {
   inputDevice: "muse",
-  outputTarget: "vex"
+  outputTarget: "mechdog"
 };
 
 export class SessionConfig {

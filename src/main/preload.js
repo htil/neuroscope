@@ -35,6 +35,9 @@ process.once("loaded", () => {
     // Kicker command IPC bridge
     vexKicker: (type) => ipcRenderer.send("vex-kicker", type),
     vexReconnect: () => ipcRenderer.invoke("vex-reconnect"),
+    scanMechDogs: () => ipcRenderer.invoke("mechdog-scan"),
+    selectMechDog: (device) => ipcRenderer.invoke("mechdog-select", device),
+    getSelectedMechDog: () => ipcRenderer.invoke("mechdog-get-selection"),
     // VEX status IPC
     onVexStatus: (callback) => {
       if (typeof callback === 'function') {

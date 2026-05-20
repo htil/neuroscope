@@ -87,6 +87,18 @@ export const NeuroScope = class {
           sonarDistanceMm: Number(status?.sonarDistanceMm)
         };
 
+        const selectButton = document.getElementById("mechdog-select");
+        const selectedAddressInput = document.getElementById("mechdog-selected-address");
+        const selectedText = status?.selectedDeviceAddress
+          ? `${status.selectedDeviceName || "MechDog"} (${status.selectedDeviceAddress})`
+          : "No MechDog selected";
+        if (selectButton) {
+          selectButton.title = status?.selectedDeviceAddress ? `Choose MechDog: ${selectedText}` : "Choose a MechDog";
+        }
+        if (selectedAddressInput) {
+          selectedAddressInput.value = selectedText;
+        }
+
         const dot = document.getElementById("vex-status-dot");
         if (!dot) return;
 
@@ -102,6 +114,22 @@ export const NeuroScope = class {
           dot.title = "Robot connected";
         }
       });
+    }
+
+    if (window.electronAPI?.getSelectedMechDog) {
+      window.electronAPI.getSelectedMechDog().then((device) => {
+        const selectedText = device?.address
+          ? `${device.name || "MechDog"} (${device.address})`
+          : "No MechDog selected";
+        const selectButton = document.getElementById("mechdog-select");
+        const selectedAddressInput = document.getElementById("mechdog-selected-address");
+        if (selectButton) {
+          selectButton.title = device?.address ? `Choose MechDog: ${selectedText}` : "Choose a MechDog";
+        }
+        if (selectedAddressInput) {
+          selectedAddressInput.value = selectedText;
+        }
+      }).catch(() => { });
     }
 
     // Ensure a defined, numeric global for wrapper functions

@@ -27,7 +27,12 @@ const isWin = process.platform === 'win32';
 let ws = null;
 let pythonForceKillTimer = null; // timeout handle for forced kill
 let reconnectInProgress = false; // guard against overlapping reconnects
-let robotBackend = "vex";
+let robotBackend = "mechdog";
+let wsRequestCounter = 0;
+const pendingWsRequests = new Map();
+let mechdogSelection = null;
+
+const MECHDOG_SELECTION_PATH = path.join(app.getPath("userData"), "mechdog-selection.json");
 
 function getRobotDisplayName() {
   if (robotBackend === "mechdog") return "MechDog";
@@ -37,6 +42,35 @@ function getRobotDisplayName() {
 
 function usesPythonBackend() {
   return robotBackend === "vex" || robotBackend === "mechdog";
+}
+
+function loadMechDogSelection() {
+  try {
+    const raw = fs.readFileSync(MECHDOG_SELECTION_PATH, "utf8");
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.address !== "string" || !parsed.address.trim()) {
+      return null;
+    }
+    return {
+      address: parsed.address.trim(),
+      name: typeof parsed.name === "string" ? parsed.name.trim() : ""
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveMechDogSelection(selection) {
+  if (!selection?.address) return;
+  fs.mkdirSync(path.dirname(MECHDOG_SELECTION_PATH), { recursive: true });
+  fs.writeFileSync(MECHDOG_SELECTION_PATH, JSON.stringify(selection, null, 2), "utf8");
+}
+
+function getMechDogSelection() {
+  if (!mechdogSelection) {
+    mechdogSelection = loadMechDogSelection();
+  }
+  return mechdogSelection;
 }
 
 function getPythonExecutable() {
@@ -134,23 +168,31 @@ async function startPythonServer() {
   console.log('[PYTHON] Resolved python executable:', pythonExe);
 
   try {
+    const spawnEnv = { ...process.env };
+    if (robotBackend === "mechdog") {
+      const selectedDog = getMechDogSelection();
+      if (selectedDog?.address) {
+        spawnEnv.MECHDOG_ADDRESS = selectedDog.address;
+      }
+    }
+
     if (typeof pythonExe === 'object') {
       if (pythonExe.standalone) {
         // Standalone exe (e.g., PyInstaller bundle) - no script argument needed
         console.log('[PYTHON] Spawning standalone exe:', pythonExe.exe);
-        pythonProcess = spawn(pythonExe.exe, [], { stdio: 'pipe' });
+        pythonProcess = spawn(pythonExe.exe, [], { stdio: 'pipe', env: spawnEnv });
       } else {
         // Python interpreter + script
         console.log('[PYTHON] Spawning bundled python + script:', pythonExe.exe, pythonExe.script);
-        pythonProcess = spawn(pythonExe.exe, [pythonExe.script], { stdio: 'pipe' });
+        pythonProcess = spawn(pythonExe.exe, [pythonExe.script], { stdio: 'pipe', env: spawnEnv });
       }
     } else if (typeof pythonExe === 'string' && pythonExe.endsWith('.exe') && isProduction) {
       console.log('[PYTHON] Spawning bundled exe:', pythonExe);
-      pythonProcess = spawn(pythonExe, [], { stdio: 'pipe' });
+      pythonProcess = spawn(pythonExe, [], { stdio: 'pipe', env: spawnEnv });
     } else {
       const script = getPythonScript();
       console.log('[PYTHON] Spawning:', pythonExe, script);
-      pythonProcess = spawn(pythonExe, [script], { stdio: 'pipe' });
+      pythonProcess = spawn(pythonExe, [script], { stdio: 'pipe', env: spawnEnv });
     }
   } catch (spawnErr) {
     console.error('[PYTHON] Spawn error:', spawnErr);
@@ -242,6 +284,16 @@ async function startRobotBackend() {
 
   await startPythonServer();
   await createWebSocketConnection();
+  if (robotBackend === "mechdog") {
+    const selectedDog = getMechDogSelection();
+    if (selectedDog?.address) {
+      try {
+        await sendWsCommand({ action: "select_device", address: selectedDog.address, name: selectedDog.name || "" });
+      } catch (error) {
+        console.warn("[MechDog] Failed to apply saved device selection:", error.message);
+      }
+    }
+  }
   pollRobotStatus();
 }
 
@@ -346,6 +398,7 @@ function createWebSocketConnection() {
 
       ws.on('close', function close() {
         console.log('WebSocket connection closed');
+        rejectPendingWsRequests('Robot backend connection closed');
       });
 
       // Increase timeout to 10 seconds and add detailed logging
@@ -363,12 +416,61 @@ function createWebSocketConnection() {
   });
 }
 
+function sendWsCommand(command, timeoutMs = 12000) {
+  return new Promise((resolve, reject) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      reject(new Error("Robot backend is not connected"));
+      return;
+    }
+
+    const request_id = `req-${Date.now()}-${++wsRequestCounter}`;
+    const payload = { ...command, request_id };
+    const timer = setTimeout(() => {
+      pendingWsRequests.delete(request_id);
+      reject(new Error(`Timed out waiting for backend response to ${command.action || "request"}`));
+    }, timeoutMs);
+
+    pendingWsRequests.set(request_id, {
+      resolve: (message) => {
+        clearTimeout(timer);
+        resolve(message);
+      },
+      reject: (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    });
+
+    try {
+      ws.send(JSON.stringify(payload));
+    } catch (error) {
+      clearTimeout(timer);
+      pendingWsRequests.delete(request_id);
+      reject(error);
+    }
+  });
+}
+
+function rejectPendingWsRequests(reason) {
+  for (const [requestId, handlers] of pendingWsRequests.entries()) {
+    handlers.reject(new Error(reason));
+    pendingWsRequests.delete(requestId);
+  }
+}
+
 // --- Status helpers ---
 function attachStatusListener() {
   if (!ws) return;
   ws.on('message', (data) => {
     try {
       const msg = JSON.parse(data);
+      if (msg.request_id && pendingWsRequests.has(msg.request_id)) {
+        const handlers = pendingWsRequests.get(msg.request_id);
+        pendingWsRequests.delete(msg.request_id);
+        handlers.resolve(msg);
+      }
+
+      const currentSelection = getMechDogSelection();
       if (msg.robot_connected !== undefined) {
         win?.webContents.send('vex-status', {
           wsConnected: true,
@@ -377,7 +479,23 @@ function attachStatusListener() {
           battery: msg.battery,
           sonarDistanceMm: msg.sonar_distance_mm,
           deviceName: msg.device_name,
+          deviceAddress: msg.device_address,
+          selectedDeviceName: currentSelection?.name || msg.device_name,
+          selectedDeviceAddress: currentSelection?.address || msg.device_address,
           lastError: msg.last_error
+        });
+      } else if (msg.type === "welcome" && msg.status) {
+        win?.webContents.send('vex-status', {
+          wsConnected: true,
+          robotConnected: !!msg.status.robot_connected,
+          backend: robotBackend,
+          battery: msg.status.battery,
+          sonarDistanceMm: msg.status.sonar_distance_mm,
+          deviceName: msg.status.device_name,
+          deviceAddress: msg.status.device_address,
+          selectedDeviceName: currentSelection?.name || msg.status.device_name,
+          selectedDeviceAddress: currentSelection?.address || msg.status.device_address,
+          lastError: msg.status.last_error
         });
       } else if (msg.action === "battery" || msg.action === "sonar") {
         win?.webContents.send('vex-status', {
@@ -385,6 +503,16 @@ function attachStatusListener() {
           backend: robotBackend,
           battery: msg.battery,
           sonarDistanceMm: msg.distance_mm
+        });
+      } else if (msg.action === "select_device") {
+        win?.webContents.send('vex-status', {
+          wsConnected: true,
+          backend: robotBackend,
+          robotConnected: !!msg.robot_connected,
+          selectedDeviceName: msg.device_name,
+          selectedDeviceAddress: msg.device_address,
+          deviceName: msg.device_name,
+          deviceAddress: msg.device_address
         });
       }
     } catch { /* ignore */ }
@@ -438,7 +566,7 @@ async function createWindow() {
   win = new BrowserWindow({
     width: 1200,
     height: 1000,
-    title: "NeuroBlock EEG for VEX",
+    title: `NeuroBlock EEG for ${getRobotDisplayName()}`,
     icon: path.join(__dirname, "icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js")
@@ -738,17 +866,61 @@ async function createWindow() {
   ipcMain.handle("vex-reconnect", async (event) => {
     // Guard: don't proceed if window is gone
     if (!win || win.isDestroyed()) {
-      console.warn('[VEX] Reconnect aborted: window destroyed');
+      console.warn(`[${getRobotDisplayName()}] Reconnect aborted: window destroyed`);
       return { success: false, message: 'Window closed' };
     }
 
-    console.log("[VEX] Reconnect requested");
+    console.log(`[${getRobotDisplayName()}] Reconnect requested`);
     const result = await reconnectVEX();
     return result;
   });
 
   // Manual status request from renderer
   ipcMain.on('vex-status-request', () => pollRobotStatus());
+
+  ipcMain.handle("mechdog-scan", async () => {
+    if (robotBackend !== "mechdog") {
+      await switchOutputTarget("mechdog");
+    }
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      throw new Error("MechDog backend is not connected");
+    }
+
+    const response = await sendWsCommand({ action: "scan_devices", timeout: 6.0 }, 15000);
+    if (response.status !== "success") {
+      throw new Error(response.message || "Failed to scan for MechDogs");
+    }
+    return response.devices || [];
+  });
+
+  ipcMain.handle("mechdog-select", async (event, device) => {
+    const address = String(device?.address || "").trim();
+    const name = String(device?.name || "").trim();
+    if (!address) {
+      throw new Error("A MechDog address is required");
+    }
+
+    if (robotBackend !== "mechdog") {
+      await switchOutputTarget("mechdog");
+    }
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      throw new Error("MechDog backend is not connected");
+    }
+
+    const response = await sendWsCommand({ action: "select_device", address, name });
+    if (response.status !== "success") {
+      throw new Error(response.message || "Failed to select MechDog");
+    }
+
+    mechdogSelection = { address, name };
+    saveMechDogSelection(mechdogSelection);
+    await reconnectVEX();
+    pollRobotStatus();
+
+    return { success: true, address, name };
+  });
+
+  ipcMain.handle("mechdog-get-selection", () => getMechDogSelection());
 
   ipcMain.on("set-output-target", (event, target) => {
     switchOutputTarget(String(target || "vex")).catch((error) => {
