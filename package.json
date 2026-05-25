@@ -1,6 +1,6 @@
 {
   "name": "electron-vuejs-parcel",
-  "description": "Neuroblock",
+  "description": "NeuroBlock EMG for MechDog",
   "version": "1.4.0",
   "author": {
     "name": "Human Technology Interaction Lab"
@@ -57,8 +57,8 @@
   },
   "main": "./src/main/index.js",
   "build": {
-    "appId": "com.htil.neuroblock-eeg-vex",
-    "productName": "NeuroBlock EEG for VEX",
+    "appId": "com.htil.neuroblock-emg-mechdog",
+    "productName": "NeuroBlock EMG for MechDog",
     "compression": "maximum",
     "files": [
       "src/main/**/*",

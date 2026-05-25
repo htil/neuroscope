@@ -45,10 +45,10 @@ export const OUTPUT_TARGETS = {
   }
 };
 
-const STORAGE_KEY = "neuroblock.session";
+const STORAGE_KEY = "neuroblock.session.emg-mechdog";
 
 export const DEFAULT_SESSION = {
-  inputDevice: "muse",
+  inputDevice: "ganglion",
   outputTarget: "mechdog"
 };
 
