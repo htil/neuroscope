@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <!--<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'">-->
-  <title>NeuroBlock EEG for MechDog</title>
+  <title>NeuroBlock EMG for MechDog</title>
   <!--<script src="https://cdn.jsdelivr.net/npm/danfojs@1.1.2/lib/bundle.min.js"></script>-->
   <link rel="stylesheet" href="css/semantic.min.css" />
   <!--<link rel="stylesheet" href="css/rickshaw.min.css" /> -->
@@ -18,6 +18,9 @@
   <div class="ui two column doubling stackable grid" style="margin: 0px !important; width: 100%; height: 100vh">
     <div class="column" style="background-color: #f2f2f2; width: 45%; position: relative; z-index: 10;">
       <div id="v" class="ui raised card centered" style="width: 100%; height: 40vh">
+        <p style="padding: 10px">
+          Muscle Energy <span id="signal_value">0</span>
+        </p>
         <div id="0"></div>
         <div id="1"></div>
         <div id="2"></div>

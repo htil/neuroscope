@@ -13,7 +13,7 @@ import { Signal } from "./signal.js";
 import { FeatureExtractor } from "./feature-extractor.js";
 import { ChannelVis } from "./channel_vis.js";
 import { BlocklyMain } from "./blockly-main.js";
-import { BandPowerVis } from "./band-power-vis.js";
+import { Console } from "./console.js";
 import { simpleTextView } from "./simple-text-view.js";
 
 let ws;
@@ -78,16 +78,27 @@ function updateMechdogSonarReadout(sonarDistanceMm) {
 export const NeuroScope = class {
   constructor() {
     this.blocklyMain = new BlocklyMain();
-    this.signal_handler = new Signal(512);
-    this.bpBis = new BandPowerVis();
+    this.signal_handler = new Signal(512, "ganglion");
+    this.console = new Console();
     this.events = new Events(this.blocklyMain);
-    this.ble = new BLE(this.signal_handler.add_data.bind(this.signal_handler));
+    this.ble = new BLE(this.signal_handler.add_data_ganglion.bind(this.signal_handler));
     this.feature_extractor = new FeatureExtractor(256);
     this.blocklyMain.start();
 
     // Ensure a defined, numeric global for wrapper functions
     window.band_powers = { delta: 0, theta: 0, alpha: 0, beta: 0, gamma: 0 };
     window.mechdogTelemetry = { battery: 0, sonarDistanceMm: 0 };
+    window.neuroConsole = this.console;
+
+    setTimeout(() => {
+      try {
+        simpleTextView.initialize(this.blocklyMain);
+        this.console.info("NeuroBlock EMG for MechDog initialized successfully");
+      } catch (error) {
+        console.error("Failed to initialize text view:", error);
+        this.console.error("Text view initialization failed: " + error.message);
+      }
+    }, 500);
 
     window.electronAPI.onVexStatus((status) => {
       window.mechdogTelemetry = {
@@ -110,19 +121,14 @@ export const NeuroScope = class {
     });
 
     setInterval(() => {
-      // Plot EEG channels
+      // Ganglion EMG is rendered from its primary muscle-signal channel.
       this.signal_handler.plot_data(0);
-      this.signal_handler.plot_data(1);
-      this.signal_handler.plot_data(2);
-      this.signal_handler.plot_data(3);
 
-      // Compute and render band power
+      // Retain sanitized band-power values for compatible Blockly blocks.
       const data = this.signal_handler.get_data();
       const band_powers = this.feature_extractor.getFormattedBandPowers(data);
 
-      // Update chart and global values used by Blockly getters
       window.band_powers = sanitize(band_powers);
-      this.bpBis.update(window.band_powers);
     }, 400);
   }
 };

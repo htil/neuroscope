@@ -1,5 +1,5 @@
 {
-  "name": "neuroblock-eeg-mechdog",
+  "name": "neuroblock-emg-mechdog",
   "description": "Neuroblock",
   "version": "1.4.0",
   "author": {
@@ -56,12 +56,12 @@
   },
   "main": "./src/main/index.js",
   "build": {
-    "appId": "com.htil.neuroblock-eeg-mechdog",
-    "productName": "NeuroBlock EEG for MechDog",
+    "appId": "com.htil.neuroblock-emg-mechdog",
+    "productName": "NeuroBlock EMG for MechDog",
     "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
     "compression": "maximum",
     "directories": {
-      "output": "dist/muse-mechdog"
+      "output": "dist/ganglion-mechdog"
     },
     "files": [
       "src/main/**/*",
@@ -111,11 +111,12 @@
   },
   "homepage": "./",
   "dependencies": {
+    "@openbci/utilities": "^1.0.0",
     "blockly": "^10.4.3",
     "d3": "^7.9.0",
     "js-interpreter": "^5.1.1",
     "rxjs": "^7.8.1",
-    "ws": "^8.18.2",
-    "wait-on": "^5.3.0"
+    "wait-on": "^5.3.0",
+    "ws": "^8.18.2"
   }
 }
