@@ -1,4 +1,4 @@
-import { INPUT_DEVICES, OUTPUT_TARGETS } from "./session-config.js";
+import { INPUT_DEVICES } from "./session-config.js";
 
 export class SessionUI {
   constructor(sessionConfig) {
@@ -7,7 +7,6 @@ export class SessionUI {
 
   initialize() {
     this.bindOptionButtons("input-device-option", "inputDevice");
-    this.bindOptionButtons("output-target-option", "outputTarget");
 
     const changeButton = document.getElementById("session-change");
     if (changeButton) {
@@ -61,7 +60,6 @@ export class SessionUI {
 
   renderOptions(session) {
     this.setActiveOption("input-device-option", session.inputDevice);
-    this.setActiveOption("output-target-option", session.outputTarget);
   }
 
   setActiveOption(className, activeValue) {
@@ -107,19 +105,12 @@ export class SessionUI {
 
 export function renderSessionOptions() {
   const inputContainer = document.getElementById("input-device-options");
-  const outputContainer = document.getElementById("output-target-options");
-
   if (inputContainer) {
     inputContainer.innerHTML = Object.values(INPUT_DEVICES)
       .map((device) => optionButton("input-device-option", device.id, device.label))
       .join("");
   }
 
-  if (outputContainer) {
-    outputContainer.innerHTML = Object.values(OUTPUT_TARGETS)
-      .map((target) => optionButton("output-target-option", target.id, target.label))
-      .join("");
-  }
 }
 
 function optionButton(className, value, label) {

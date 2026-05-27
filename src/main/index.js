@@ -89,7 +89,7 @@ function getPythonExecutable() {
     // Production: Use bundled executable
     console.log('[PYTHON] isProduction:', !isDevelopment);
     console.log('[PYTHON] process.resourcesPath:', process.resourcesPath);
-    const exeCandidates = robotBackend === "mechdog" ? ["MechDogServer.exe", "VEXServer.exe"] : ["VEXServer.exe"];
+    const exeCandidates = robotBackend === "mechdog" ? ["MechDogServer.exe"] : ["VEXServer.exe"];
     for (const exeName of exeCandidates) {
       const bundledExe = path.join(process.resourcesPath, 'python', exeName);
       console.log('[PYTHON] Checking bundled exe at:', bundledExe, 'exists:', fs.existsSync(bundledExe));

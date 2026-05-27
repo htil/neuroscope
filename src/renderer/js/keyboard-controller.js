@@ -5,14 +5,14 @@ const KEYBOARD_BINDINGS = {
   KeyD: { label: "D", description: "Right", command: { action: "move", distance: 2, heading: 90 }, repeat: true },
   KeyQ: { label: "Q", description: "Turn Left", command: { action: "turn_left", degrees: 15 }, repeat: true },
   KeyE: { label: "E", description: "Turn Right", command: { action: "turn_right", degrees: 15 }, repeat: true },
-  Space: { label: "Space", description: "Kicker", command: { action: "kicker", type: "hard" }, repeat: false }
+  Space: { label: "Space", description: "Stop", command: { action: "stop" }, repeat: false }
 };
 
 export class KeyboardController {
   constructor(sessionConfig) {
     this.sessionConfig = sessionConfig;
     this.active = false;
-    this.outputTarget = "vex";
+    this.outputTarget = "mechdog";
     this.heldKeys = new Set();
     this.sentOneShotKeys = new Set();
     this.interval = null;
@@ -111,13 +111,6 @@ export class KeyboardController {
   }
 
   sendBinding(code, binding) {
-    if (this.outputTarget !== "vex") {
-      this.lastCommand = `${binding.description} ignored: select VEX output`;
-      window.neuroConsole?.warning?.(this.lastCommand);
-      this.updatePanel();
-      return;
-    }
-
     window.electronAPI?.sendCommand?.(binding.command);
     this.lastCommand = `${binding.label}: ${binding.description}`;
     window.neuroConsole?.print?.(this.lastCommand, "info");
