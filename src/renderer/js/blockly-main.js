@@ -9,7 +9,7 @@ import Interpreter from "js-interpreter";
 import { InterpreterAPI } from "./interpreter-api.js";
 
 Blockly.setLocale(locale);
-let { cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_drone, cat_vex, cat_mechdog } = Categories;
+let { cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_mechdog } = Categories;
 
 export const BlocklyMain = class {
   constructor() {
@@ -35,15 +35,8 @@ export const BlocklyMain = class {
     this.registerCustomToolbox();
   }
 
-  getToolboxCategories = (outputTarget = "vex") => {
-    const robotCategory =
-      outputTarget === "mechdog"
-        ? cat_mechdog
-        : outputTarget === "tello"
-          ? cat_drone
-          : outputTarget === "none"
-            ? null
-            : cat_vex;
+  getToolboxCategories = () => {
+    const robotCategory = cat_mechdog;
 
     return [
       cat_logic,
@@ -55,8 +48,8 @@ export const BlocklyMain = class {
     ];
   };
 
-  setOutputTarget = (outputTarget) => {
-    const toolbox = new Toolbox(this.getToolboxCategories(outputTarget));
+  setOutputTarget = () => {
+    const toolbox = new Toolbox(this.getToolboxCategories());
     this.workspace.updateToolbox(toolbox.toString());
   };
 
@@ -123,10 +116,6 @@ export const BlocklyMain = class {
       drone_back: "back",
       ccw: "rotate counter-clockwise",
       cw: "rotate clockwise",
-      vex_forward: "forward",
-      vex_back: "back",
-      vex_left: "left",
-      vex_right: "right",
       mechdog_forward: "forward",
       mechdog_back: "back",
       mechdog_left: "left",
@@ -283,10 +272,6 @@ export const BlocklyMain = class {
               `Add a number to tell ${this.getBlockLabel(block)} how far to move.`
             );
             break;
-          case "vex_forward":
-          case "vex_back":
-          case "vex_left":
-          case "vex_right":
           case "mechdog_forward":
           case "mechdog_back":
           case "mechdog_left":

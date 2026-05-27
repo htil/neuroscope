@@ -88,30 +88,6 @@ export const WrapperFunctions = class {
     window.electronAPI.droneBack(value);
   }
 
-  vex_turn_left(degrees) {
-    window.electronAPI.vexTurnLeft(degrees);
-  }
-
-  vex_turn_right(degrees) {
-    window.electronAPI.vexTurnRight(degrees);
-  }
-
-  vex_forward(distance) {
-    window.electronAPI.vexForward(distance);
-  }
-
-  vex_back(distance) {
-    window.electronAPI.vexBack(distance);
-  }
-
-  vex_left(distance) {
-    window.electronAPI.vexLeft(distance);
-  }
-
-  vex_right(distance) {
-    window.electronAPI.vexRight(distance);
-  }
-
   mechdog_back(distance) {
     window.electronAPI.sendCommand({ action: "move", distance, heading: 180 });
   }
@@ -142,19 +118,6 @@ export const WrapperFunctions = class {
 
   mechdog_boxing() {
     window.electronAPI.sendCommand({ action: "mechdog_action", type: "boxing" });
-  }
-
-  // VEX Kicker wrapper: forwards kicker commands to main via electronAPI
-  vex_kicker(kind) {
-    // Normalize kind to lowercase string ('hard'|'soft'|'place')
-    const k = String(kind || "").toLowerCase();
-    // Use dedicated IPC channel (vex-kicker) for consistency & logging
-    if (window.electronAPI && typeof window.electronAPI.vexKicker === 'function') {
-      window.electronAPI.vexKicker(k);
-    } else {
-      // Fallback to generic command if alias missing (defensive)
-      window.electronAPI.sendCommand({ action: "kicker", type: k });
-    }
   }
 
   ccw(value) {

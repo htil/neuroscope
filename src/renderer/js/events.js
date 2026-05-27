@@ -248,7 +248,7 @@ export const Events = class {
     window.electronAPI.manualControl("land");
   }
 
-  /* VEX Events */
+  /* Robot Events */
   async reconnect_vex() {
     console.log("Reconnecting to MechDog...");
 
