@@ -25,7 +25,7 @@ hiddenimports += collect_submodules('vex')
 datas = []
 datas += collect_data_files('websockets')
 
-# Include the vex module folder with settings.json and all Python files
+# Include the optional vex module folder retained by the shared robot backend source tree.
 # Use os.path.abspath to ensure we get the correct path relative to the spec file
 vex_source = os.path.join(spec_root, 'resources', 'python', 'vex')
 if os.path.exists(vex_source):
