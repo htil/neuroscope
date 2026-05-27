@@ -6,11 +6,9 @@ export const Console = class {
     }
 
     initConsole() {
-        // Clear the bands div and set up console HTML
-        const bandsElement = document.getElementById("bands");
-        bandsElement.innerHTML = `
+        const panelBody = document.getElementById("signal-panel-body");
+        panelBody.innerHTML = `
       <div style="padding: 10px; height: 100%; display: flex; flex-direction: column;">
-        <h4 style="margin: 0 0 10px 0; color: #333;">Console Output</h4>
         <div 
           id="console-output" 
           style="

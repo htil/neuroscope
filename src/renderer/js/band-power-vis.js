@@ -15,8 +15,10 @@ export const BandPowerVis = class {
       { group: "Beta", value: 1 },
       { group: "Gamma", value: 1 }
     ];
-    this.svg = d3
-      .select("#bands")
+    const panel = d3.select("#signal-panel-body");
+    panel.html("");
+
+    this.svg = panel
       .append("svg")
       .attr("width", this.width + margin.left + margin.right)
       .attr("height", this.height + margin.top + margin.bottom)

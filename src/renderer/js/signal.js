@@ -2,31 +2,28 @@
 import { ChannelVis } from "./channel_vis.js";
 
 export const Signal = class {
-  constructor(buffer_size = 256, device = "muse") {
+  constructor(buffer_size = 256) {
     this.channels = {};
     this.channels_d3_plot = {};
     this.BUFFER_SIZE = buffer_size;
-    let signal_div_height = device === "ganglion" ? 0.5 : 0.09; // For now if device is muse, we use 0.09, if device is ganglion, we use 0.2
-    this.x_top_padding = device === "ganglion" ? window.innerHeight * 3 : 0;
-    console.log("top padding", this.x_top_padding);
-    this.channel_vis = new ChannelVis(signal_div_height);
-    this.signal_value_dom = document.querySelector("#signal_value");
+    this.channel_vis = new ChannelVis();
+    this.signal_value_dom = document.querySelector("#signal_value") || document.querySelector("#signal-value");
     this.last_signal_update = Date.now();
     this.value_refresh_delay_ms = 100;
     this.EMG_SIGNAL_MULTIPLIER = 10000000;
-    let Fili = window.fili;
-    this.sampleRate = 250;
-    // this.lowFreq = lowFreq;
-    // this.highFreq = highFreq;
-    this.filterOrder = 100;
-    this.firCalculator = new Fili.FirCoeffs();
-    this.coeffs = this.firCalculator.lowpass({
-      order: this.filterOrder,
-      Fs: this.sampleRate,
-      Fc: 3
-    });
+    this.emg_display_multiplier = 100000;
+    this.filter = null;
 
-    this.filter = new Fili.FirFilter(this.coeffs);
+    if (window.Fili || window.fili) {
+      const Fili = window.Fili || window.fili;
+      const firCalculator = new Fili.FirCoeffs();
+      const coeffs = firCalculator.lowpass({
+        order: 100,
+        Fs: 250,
+        Fc: 3
+      });
+      this.filter = new Fili.FirFilter(coeffs);
+    }
     //this.tensor = new TensorDSP("muse");
 
     /*
@@ -40,19 +37,32 @@ export const Signal = class {
     // This will come with a computational cost.
   }
 
-  add_data_ganglion(sample, electrode = 0) {
-    let new_sample = Math.abs(sample.data[0] * this.EMG_SIGNAL_MULTIPLIER);
-    let filtered_data = this.filter.singleStep(new_sample);
-    //console.log("my sample", filtered_data);
-    // window.filteredSample = filtered_data;
+  setDeviceMode(deviceId) {
+    this.channels = {};
+    this.channels_d3_plot = {};
+    this.channel_vis.configure(
+      deviceId === "ganglion"
+        ? { channelCount: 1, heightRatio: 0.36 }
+        : { channelCount: 4, heightRatio: 0.09 }
+    );
+  }
 
-    let value_for_kids = Math.abs(sample.data[0] * 100000).toFixed(2); // easier for students to interpret
-    if (Date.now() - this.last_signal_update > this.value_refresh_delay_ms) {
-      this.signal_value_dom.innerHTML = value_for_kids; // easier for students to interpret
+  add_data_ganglion(sample, electrode = 0) {
+    const sourceValue = Number(sample?.data?.[0]);
+    if (!Number.isFinite(sourceValue)) {
+      return;
+    }
+
+    const amplifiedSample = Math.abs(sourceValue * this.EMG_SIGNAL_MULTIPLIER);
+    const filteredData = this.filter ? this.filter.singleStep(amplifiedSample) : amplifiedSample;
+    const displayValue = Math.abs(sourceValue * this.emg_display_multiplier);
+
+    if (this.signal_value_dom && Date.now() - this.last_signal_update > this.value_refresh_delay_ms) {
+      this.signal_value_dom.textContent = displayValue.toFixed(2);
       this.last_signal_update = Date.now();
     }
 
-    window.filteredSample = value_for_kids;
+    window.filteredSample = displayValue.toFixed(2);
 
     if (!this.channels[electrode]) {
       this.channels[electrode] = [];
@@ -63,9 +73,7 @@ export const Signal = class {
       this.channels[electrode].shift();
     }
 
-    let formatted_data = filtered_data - this.x_top_padding * 1.6;
-    this.channels[electrode].push(formatted_data);
-    //console.log(this.channels[electrode]);
+    this.channels[electrode].push(displayValue);
   }
 
   add_data(sample) {
@@ -108,6 +116,10 @@ export const Signal = class {
   }
 
   plot_data(electrode) {
+    if (!this.channels[electrode] || !this.channel_vis?.svgs?.[electrode]) {
+      return;
+    }
+
     //let electrode = 0;
     this.channels_d3_plot[electrode] = [];
     for (let sample in this.channels[electrode]) {

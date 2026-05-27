@@ -27,58 +27,50 @@ const isWin = process.platform === 'win32';
 let ws = null;
 let pythonForceKillTimer = null; // timeout handle for forced kill
 let reconnectInProgress = false; // guard against overlapping reconnects
-let pythonStopping = false;
-let backendRestartTimer = null;
-const robotBackend = String(process.env.ROBOT_BACKEND || 'mechdog').toLowerCase();
-const robotDisplayName = robotBackend === 'mechdog' ? 'MechDog' : 'VEX AIM';
+let robotBackend = "mechdog";
+let wsRequestCounter = 0;
+const pendingWsRequests = new Map();
+let mechdogSelection = null;
 
-function publishRobotStatus(status) {
-  if (!win || win.isDestroyed()) return;
-  win.webContents.send('vex-status', status);
+const MECHDOG_SELECTION_PATH = path.join(app.getPath("userData"), "mechdog-selection.json");
+
+function getRobotDisplayName() {
+  if (robotBackend === "mechdog") return "MechDog";
+  if (robotBackend === "tello") return "Tello";
+  return "VEX AIM";
 }
 
-function clearBackendRestartTimer() {
-  if (backendRestartTimer) {
-    clearTimeout(backendRestartTimer);
-    backendRestartTimer = null;
-  }
+function usesPythonBackend() {
+  return robotBackend === "vex" || robotBackend === "mechdog";
 }
 
-async function restoreBackendConnection() {
+function loadMechDogSelection() {
   try {
-    if (!pythonProcess) {
-      await startPythonServer();
+    const raw = fs.readFileSync(MECHDOG_SELECTION_PATH, "utf8");
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.address !== "string" || !parsed.address.trim()) {
+      return null;
     }
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      await createWebSocketConnection();
-    }
-    pollRobotStatus();
-  } catch (error) {
-    console.error(`[${robotDisplayName}] Failed to restore backend connection:`, error);
-    throw error;
+    return {
+      address: parsed.address.trim(),
+      name: typeof parsed.name === "string" ? parsed.name.trim() : ""
+    };
+  } catch {
+    return null;
   }
 }
 
-function scheduleBackendRestart(reason = 'unknown') {
-  if (pythonStopping || !win || win.isDestroyed()) {
-    return;
-  }
-  if (backendRestartTimer) {
-    return;
-  }
+function saveMechDogSelection(selection) {
+  if (!selection?.address) return;
+  fs.mkdirSync(path.dirname(MECHDOG_SELECTION_PATH), { recursive: true });
+  fs.writeFileSync(MECHDOG_SELECTION_PATH, JSON.stringify(selection, null, 2), "utf8");
+}
 
-  console.warn(`[${robotDisplayName}] Scheduling backend restart after ${reason}`);
-  publishRobotStatus({ wsConnected: false, robotConnected: false, backendRunning: false });
-  backendRestartTimer = setTimeout(async () => {
-    backendRestartTimer = null;
-    try {
-      await restoreBackendConnection();
-      console.log(`[${robotDisplayName}] Backend restored successfully`);
-    } catch (error) {
-      console.error(`[${robotDisplayName}] Backend restart attempt failed:`, error);
-      scheduleBackendRestart('failed restart attempt');
-    }
-  }, 1500);
+function getMechDogSelection() {
+  if (!mechdogSelection) {
+    mechdogSelection = loadMechDogSelection();
+  }
+  return mechdogSelection;
 }
 
 function getPythonExecutable() {
@@ -97,9 +89,7 @@ function getPythonExecutable() {
     // Production: Use bundled executable
     console.log('[PYTHON] isProduction:', !isDevelopment);
     console.log('[PYTHON] process.resourcesPath:', process.resourcesPath);
-    const exeCandidates = robotBackend === 'mechdog'
-      ? ['MechDogServer.exe', 'VEXServer.exe']
-      : ['VEXServer.exe'];
+    const exeCandidates = robotBackend === "mechdog" ? ["MechDogServer.exe", "VEXServer.exe"] : ["VEXServer.exe"];
     for (const exeName of exeCandidates) {
       const bundledExe = path.join(process.resourcesPath, 'python', exeName);
       console.log('[PYTHON] Checking bundled exe at:', bundledExe, 'exists:', fs.existsSync(bundledExe));
@@ -110,11 +100,7 @@ function getPythonExecutable() {
     }
     // Fallback to script with bundled python
     const bundledPython = path.join(process.resourcesPath, 'python', 'python.exe');
-    const bundledScript = path.join(
-      process.resourcesPath,
-      'python',
-      robotBackend === 'mechdog' ? 'MechDogServer.py' : 'VEXServer.py'
-    );
+    const bundledScript = path.join(process.resourcesPath, 'python', getPythonScriptName());
     console.log('[PYTHON] Checking bundled python at:', bundledPython, 'exists:', fs.existsSync(bundledPython));
     console.log('[PYTHON] Checking bundled script at:', bundledScript, 'exists:', fs.existsSync(bundledScript));
     if (fs.existsSync(bundledPython) && fs.existsSync(bundledScript)) {
@@ -129,56 +115,87 @@ function getPythonExecutable() {
 function getPythonScript() {
   if (isDevelopment) {
     const useMock = (process.env.VEX_MOCK === '1' || String(process.env.VEX_MOCK || '').toLowerCase() === 'true');
-    const scriptName = useMock
-      ? 'VEXServer_dev.py'
-      : (robotBackend === 'mechdog' ? 'MechDogServer.py' : 'VEXServer.py');
+    const scriptName = useMock && robotBackend === "vex" ? 'VEXServer_dev.py' : getPythonScriptName();
     const devPath = path.join(__dirname, '..', '..', 'resources', 'python', scriptName);
     console.log(`[PYTHON] getPythonScript dev -> ${scriptName}:`, devPath, 'exists:', fs.existsSync(devPath));
     return devPath;
   } else {
-    const scriptName = robotBackend === 'mechdog' ? 'MechDogServer.py' : 'VEXServer.py';
-    const prodPath = path.join(process.resourcesPath, 'python', scriptName);
+    const prodPath = path.join(process.resourcesPath, 'python', getPythonScriptName());
     console.log('[PYTHON] getPythonScript prod path:', prodPath, 'exists:', fs.existsSync(prodPath));
     return prodPath;
   }
 }
 
+function getPythonScriptName() {
+  return robotBackend === "mechdog" ? "MechDogServer.py" : "VEXServer.py";
+}
+
+async function isRobotBackendPortReady() {
+  const net = require('net');
+  return new Promise(res => {
+    const sock = net.createConnection({ port: 8777, host: '127.0.0.1' });
+    const done = (ready) => {
+      try { sock.destroy(); } catch { }
+      res(ready);
+    };
+    sock.once('connect', () => done(true));
+    sock.once('error', () => done(false));
+    setTimeout(() => done(false), 300);
+  });
+}
+
 async function startPythonServer() {
+  if (!usesPythonBackend()) {
+    console.log(`[PYTHON] ${getRobotDisplayName()} does not use the Python robot backend`);
+    return;
+  }
+
   if (pythonProcess) {
     return;
   }
+
+  if (await isRobotBackendPortReady()) {
+    console.log('[PYTHON] Reusing existing robot backend on ws://127.0.0.1:8777');
+    return;
+  }
+
   // Clear any lingering force-kill timer from a prior stop
   if (pythonForceKillTimer) {
     clearTimeout(pythonForceKillTimer);
     pythonForceKillTimer = null;
   }
-  clearBackendRestartTimer();
-  pythonStopping = false;
   const pythonExe = getPythonExecutable();
   console.log('[PYTHON] Resolved python executable:', pythonExe);
 
   try {
+    const spawnEnv = { ...process.env };
+    if (robotBackend === "mechdog") {
+      const selectedDog = getMechDogSelection();
+      if (selectedDog?.address) {
+        spawnEnv.MECHDOG_ADDRESS = selectedDog.address;
+      }
+    }
+
     if (typeof pythonExe === 'object') {
       if (pythonExe.standalone) {
         // Standalone exe (e.g., PyInstaller bundle) - no script argument needed
         console.log('[PYTHON] Spawning standalone exe:', pythonExe.exe);
-        pythonProcess = spawn(pythonExe.exe, [], { stdio: 'pipe' });
+        pythonProcess = spawn(pythonExe.exe, [], { stdio: 'pipe', env: spawnEnv });
       } else {
         // Python interpreter + script
         console.log('[PYTHON] Spawning bundled python + script:', pythonExe.exe, pythonExe.script);
-        pythonProcess = spawn(pythonExe.exe, [pythonExe.script], { stdio: 'pipe' });
+        pythonProcess = spawn(pythonExe.exe, [pythonExe.script], { stdio: 'pipe', env: spawnEnv });
       }
     } else if (typeof pythonExe === 'string' && pythonExe.endsWith('.exe') && isProduction) {
       console.log('[PYTHON] Spawning bundled exe:', pythonExe);
-      pythonProcess = spawn(pythonExe, [], { stdio: 'pipe' });
+      pythonProcess = spawn(pythonExe, [], { stdio: 'pipe', env: spawnEnv });
     } else {
       const script = getPythonScript();
       console.log('[PYTHON] Spawning:', pythonExe, script);
-      pythonProcess = spawn(pythonExe, [script], { stdio: 'pipe' });
+      pythonProcess = spawn(pythonExe, [script], { stdio: 'pipe', env: spawnEnv });
     }
   } catch (spawnErr) {
     console.error('[PYTHON] Spawn error:', spawnErr);
-    scheduleBackendRestart('spawn error');
     return; // abort start
   }
 
@@ -187,21 +204,12 @@ async function startPythonServer() {
   pythonProcess?.on('close', (code) => {
     console.log(`Python process exited with code ${code}`);
     pythonProcess = null;
-    if (!pythonStopping) {
-      scheduleBackendRestart(`python exit code ${code}`);
-    }
   });
 
   // Lightweight TCP poll instead of waitOn to avoid WebSocket handshake noise
-  const net = require('net');
   const maxAttempts = 25;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const portReady = await new Promise(res => {
-      const sock = net.createConnection({ port: 8777, host: '127.0.0.1' });
-      sock.once('connect', () => { sock.end(); res(true); });
-      sock.once('error', () => { res(false); });
-      setTimeout(() => { res(false); try { sock.destroy(); } catch { } }, 300);
-    });
+    const portReady = await isRobotBackendPortReady();
     if (portReady) {
       console.log('[PYTHON] WebSocket TCP port responsive');
       break;
@@ -214,9 +222,7 @@ async function startPythonServer() {
 }
 
 async function stopPythonServer() {
-  console.log(`Stopping Python ${robotDisplayName} server...`);
-  pythonStopping = true;
-  clearBackendRestartTimer();
+  console.log(`Stopping Python ${getRobotDisplayName()} server...`);
   if (!pythonProcess) {
     console.log('Python process already stopped');
     return;
@@ -261,8 +267,51 @@ async function stopPythonServer() {
   });
 }
 
+async function stopRobotBackend() {
+  if (ws) {
+    try { ws.close(); } catch { }
+    ws = null;
+  }
+
+  await stopPythonServer();
+}
+
+async function startRobotBackend() {
+  if (!usesPythonBackend()) {
+    await stopRobotBackend();
+    return;
+  }
+
+  await startPythonServer();
+  await createWebSocketConnection();
+  if (robotBackend === "mechdog") {
+    const selectedDog = getMechDogSelection();
+    if (selectedDog?.address) {
+      try {
+        await sendWsCommand({ action: "select_device", address: selectedDog.address, name: selectedDog.name || "" });
+      } catch (error) {
+        console.warn("[MechDog] Failed to apply saved device selection:", error.message);
+      }
+    }
+  }
+  pollRobotStatus();
+}
+
+async function switchOutputTarget(target) {
+  const nextBackend = target === "mechdog" ? "mechdog" : target === "tello" ? "tello" : target === "none" ? "none" : "vex";
+
+  if (nextBackend === robotBackend) {
+    return;
+  }
+
+  console.log(`[ROBOT] Switching output target from ${robotBackend} to ${nextBackend}`);
+  await stopRobotBackend();
+  robotBackend = nextBackend;
+  await startRobotBackend();
+}
+
 async function reconnectVEX() {
-  console.log(`Reconnecting to ${robotDisplayName}...`);
+  console.log(`Reconnecting to ${getRobotDisplayName()}...`);
   if (reconnectInProgress) {
     console.log('Reconnect skipped: already in progress');
     return { success: false, message: 'Reconnect already running' };
@@ -276,10 +325,10 @@ async function reconnectVEX() {
 
       const robotConnected = await waitForRobotConnection();
       if (robotConnected) {
-        console.log(`${robotDisplayName} connection confirmed`);
-        return { success: true, message: `Successfully connected to ${robotDisplayName}` };
+        console.log(`${getRobotDisplayName()} connection confirmed`);
+        return { success: true, message: `Successfully connected to ${getRobotDisplayName()}` };
       }
-      return { success: false, message: `${robotDisplayName} is not connected. Turn it on, pair/connect it over Bluetooth, and try again.` };
+      return { success: false, message: `${getRobotDisplayName()} backend is running, but the device is not connected.` };
     } else {
       // WebSocket isn't connected - fall back to restarting everything
       console.log('WebSocket not connected, restarting Python server...');
@@ -315,52 +364,56 @@ async function reconnectVEX() {
         return { success: false, message: 'Failed to reconnect WebSocket after restarting Python server (5 attempts)' };
       }
 
-      console.log(`Local ${robotDisplayName} server reconnected; checking device connection...`);
+      console.log(`Local ${getRobotDisplayName()} server reconnected; checking device connection...`);
       const robotConnected = await waitForRobotConnection();
       if (robotConnected) {
-        console.log(`${robotDisplayName} connection confirmed`);
-        return { success: true, message: `Successfully connected to ${robotDisplayName}` };
+        return { success: true, message: `Successfully connected to ${getRobotDisplayName()}` };
       }
-      return { success: false, message: `Local ${robotDisplayName} server restarted, but the device is not connected. Turn it on, pair/connect it over Bluetooth, and try again.` };
+      return { success: false, message: `Local ${getRobotDisplayName()} server restarted, but the device is not connected.` };
     }
   } catch (error) {
-    console.error(`Failed to reconnect to ${robotDisplayName}:`, error);
+    console.error(`Failed to reconnect to ${getRobotDisplayName()}:`, error);
     return { success: false, message: `Reconnection failed: ${error.message}` };
   } finally {
     reconnectInProgress = false;
   }
 }
 
-function waitForRobotConnection(timeoutMs = 20000) {
+function waitForRobotConnection(timeoutMs = 30000) {
   return new Promise((resolve) => {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       resolve(false);
       return;
     }
 
-    let timeout;
     let interval;
+    let timeout;
     const cleanup = () => {
-      clearTimeout(timeout);
       clearInterval(interval);
+      clearTimeout(timeout);
       ws?.removeListener('message', onMessage);
+    };
+    const finish = (connected) => {
+      cleanup();
+      resolve(connected);
     };
     const onMessage = (data) => {
       try {
         const msg = JSON.parse(data);
-        if (msg.robot_connected === true) {
-          cleanup();
-          resolve(true);
-        } else if (msg.status === 'error' || (msg.action === 'reconnect_robot' && msg.robot_connected === false)) {
-          cleanup();
-          resolve(false);
+        if (msg.robot_connected === true ||
+            (msg.type === 'welcome' && msg.status?.robot_connected === true)) {
+          finish(true);
+        } else if (msg.status === 'error' ||
+                   (robotBackend === 'mechdog' &&
+                    msg.action === 'reconnect_robot' &&
+                    msg.robot_connected === false)) {
+          finish(false);
         }
       } catch { /* ignore unrelated messages */ }
     };
     const requestStatus = () => {
       if (!ws || ws.readyState !== WebSocket.OPEN) {
-        cleanup();
-        resolve(false);
+        finish(false);
         return;
       }
       ws.send(JSON.stringify({ action: 'status' }));
@@ -368,10 +421,7 @@ function waitForRobotConnection(timeoutMs = 20000) {
 
     ws.on('message', onMessage);
     interval = setInterval(requestStatus, 500);
-    timeout = setTimeout(() => {
-      cleanup();
-      resolve(false);
-    }, timeoutMs);
+    timeout = setTimeout(() => finish(false), timeoutMs);
     requestStatus();
   });
 }
@@ -386,7 +436,6 @@ function createWebSocketConnection() {
         console.log('WebSocket connection opened');
         clearTimeout(wsTimeout);
         attachStatusListener();
-        publishRobotStatus({ wsConnected: true, robotConnected: false, backendRunning: true });
         resolve();
       });
 
@@ -398,11 +447,12 @@ function createWebSocketConnection() {
 
       ws.on('close', function close() {
         console.log('WebSocket connection closed');
-        publishRobotStatus({ wsConnected: false, robotConnected: false, backendRunning: !!pythonProcess });
-        if (!pythonStopping) {
-          ws = null;
-          scheduleBackendRestart('websocket close');
-        }
+        rejectPendingWsRequests('Robot backend connection closed');
+        win?.webContents.send('vex-status', {
+          wsConnected: false,
+          robotConnected: false,
+          backend: robotBackend
+        });
       });
 
       // Increase timeout to 10 seconds and add detailed logging
@@ -420,29 +470,103 @@ function createWebSocketConnection() {
   });
 }
 
+function sendWsCommand(command, timeoutMs = 12000) {
+  return new Promise((resolve, reject) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      reject(new Error("Robot backend is not connected"));
+      return;
+    }
+
+    const request_id = `req-${Date.now()}-${++wsRequestCounter}`;
+    const payload = { ...command, request_id };
+    const timer = setTimeout(() => {
+      pendingWsRequests.delete(request_id);
+      reject(new Error(`Timed out waiting for backend response to ${command.action || "request"}`));
+    }, timeoutMs);
+
+    pendingWsRequests.set(request_id, {
+      resolve: (message) => {
+        clearTimeout(timer);
+        resolve(message);
+      },
+      reject: (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    });
+
+    try {
+      ws.send(JSON.stringify(payload));
+    } catch (error) {
+      clearTimeout(timer);
+      pendingWsRequests.delete(request_id);
+      reject(error);
+    }
+  });
+}
+
+function rejectPendingWsRequests(reason) {
+  for (const [requestId, handlers] of pendingWsRequests.entries()) {
+    handlers.reject(new Error(reason));
+    pendingWsRequests.delete(requestId);
+  }
+}
+
 // --- Status helpers ---
 function attachStatusListener() {
   if (!ws) return;
   ws.on('message', (data) => {
     try {
       const msg = JSON.parse(data);
+      if (msg.request_id && pendingWsRequests.has(msg.request_id)) {
+        const handlers = pendingWsRequests.get(msg.request_id);
+        pendingWsRequests.delete(msg.request_id);
+        handlers.resolve(msg);
+      }
+
+      const currentSelection = getMechDogSelection();
       if (msg.robot_connected !== undefined) {
-        publishRobotStatus({
+        win?.webContents.send('vex-status', {
           wsConnected: true,
           robotConnected: !!msg.robot_connected,
-          backendRunning: true,
+          backend: robotBackend,
+          battery: msg.battery,
+          sonarDistanceMm: msg.sonar_distance_mm,
           deviceName: msg.device_name,
           deviceAddress: msg.device_address,
-          lastError: msg.last_error,
-          battery: msg.battery,
-          sonarDistanceMm: msg.sonar_distance_mm
+          selectedDeviceName: currentSelection?.name || msg.device_name,
+          selectedDeviceAddress: currentSelection?.address || msg.device_address,
+          lastError: msg.last_error
         });
-      } else if (msg.action === 'battery' || msg.action === 'sonar') {
-        publishRobotStatus({
+      } else if (msg.type === "welcome" && msg.status) {
+        win?.webContents.send('vex-status', {
           wsConnected: true,
-          backendRunning: true,
+          robotConnected: !!msg.status.robot_connected,
+          backend: robotBackend,
+          battery: msg.status.battery,
+          sonarDistanceMm: msg.status.sonar_distance_mm,
+          deviceName: msg.status.device_name,
+          deviceAddress: msg.status.device_address,
+          selectedDeviceName: currentSelection?.name || msg.status.device_name,
+          selectedDeviceAddress: currentSelection?.address || msg.status.device_address,
+          lastError: msg.status.last_error
+        });
+      } else if (msg.action === "battery" || msg.action === "sonar") {
+        win?.webContents.send('vex-status', {
+          wsConnected: true,
+          backend: robotBackend,
           battery: msg.battery,
           sonarDistanceMm: msg.distance_mm
+        });
+      } else if (msg.action === "select_device") {
+        win?.webContents.send('vex-status', {
+          wsConnected: true,
+          backend: robotBackend,
+          robotConnected: !!msg.robot_connected,
+          selectedDeviceName: msg.device_name,
+          selectedDeviceAddress: msg.device_address,
+          deviceName: msg.device_name,
+          deviceAddress: msg.device_address
         });
       }
     } catch { /* ignore */ }
@@ -462,14 +586,15 @@ function pollRobotStatus() {
 }
 
 function pollRobotTelemetry() {
-  if (!ws || ws.readyState !== WebSocket.OPEN || !win || win.isDestroyed()) {
+  if (robotBackend !== "mechdog" || !ws || ws.readyState !== WebSocket.OPEN || !win || win.isDestroyed()) {
     return;
   }
+
   try {
-    ws.send(JSON.stringify({ action: 'battery' }));
-    ws.send(JSON.stringify({ action: 'sonar' }));
+    ws.send(JSON.stringify({ action: "battery" }));
+    ws.send(JSON.stringify({ action: "sonar" }));
   } catch (err) {
-    console.warn('Failed to poll telemetry:', err);
+    console.warn("Failed to poll MechDog telemetry:", err);
   }
 }
 
@@ -495,7 +620,7 @@ async function createWindow() {
   win = new BrowserWindow({
     width: 1200,
     height: 1000,
-    title: `NeuroBlock EMG for ${robotDisplayName}`,
+    title: `NeuroBlock EMG for ${getRobotDisplayName()}`,
     icon: path.join(__dirname, "icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js")
@@ -585,6 +710,9 @@ async function createWindow() {
   });
 
   setInterval(() => {
+    if (robotBackend !== "tello") {
+      return;
+    }
     //console.log(tello.getState());
     let drone_state = tello.getState();
     win.webContents.send("drone_state", drone_state);
@@ -597,7 +725,65 @@ async function createWindow() {
     }
   });
 
+  function parseCommandNumber(value, fallback) {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  function clampTelloMove(value) {
+    const parsed = parseCommandNumber(value, minSpeed);
+    return Math.max(minSpeed, Math.min(maxSpeed, parsed));
+  }
+
+  function sendTelloCommand(command) {
+    const action = String(command && command.action ? command.action : "").toLowerCase();
+
+    if (action === "move") {
+      const heading = Number(command.heading);
+      const distance = clampTelloMove(command.distance);
+
+      if (heading === 0) tello.forward(distance);
+      else if (heading === 180) tello.back(distance);
+      else if (heading === 90) tello.right(distance);
+      else if (heading === 270) tello.left(distance);
+      else console.warn("[Tello] Unsupported move heading:", command);
+      return;
+    }
+
+    if (action === "turn_left") {
+      tello.ccw(parseCommandNumber(command.degrees, 90));
+      return;
+    }
+
+    if (action === "turn_right") {
+      tello.cw(parseCommandNumber(command.degrees, 90));
+      return;
+    }
+
+    if (action === "takeoff") {
+      tello.takeoff();
+      return;
+    }
+
+    if (action === "land") {
+      tello.land();
+      return;
+    }
+
+    console.warn("[Tello] Unsupported command:", command);
+  }
+
   function sendCommand(command) {
+    if (robotBackend === "none") {
+      console.warn("No output target selected; ignoring command:", command);
+      return;
+    }
+
+    if (robotBackend === "tello") {
+      sendTelloCommand(command);
+      return;
+    }
+
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(command));
       console.log("Command sent:", command);
@@ -607,8 +793,8 @@ async function createWindow() {
   }
 
   // Initialize WebSocket connection
-  restoreBackendConnection().catch(err => {
-    console.error('Failed to establish initial backend connection:', err);
+  startRobotBackend().catch(err => {
+    console.error('Failed to establish initial robot backend connection:', err);
   });
 
   // Periodic status polling - but clear it when window closes
@@ -617,55 +803,75 @@ async function createWindow() {
   // NOTE: win.on("closed") handler is already defined above in createWindow()
 
   ipcMain.on("drone-up", (event, response) => {
-    let recent_val = parseInt(response);
-    let rightVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-    console.log("Sphero right", rightVal, "sent", response);
-    const moveCommand = { action: "move", distance: response, heading: 90 };//For Vex
+    let rightVal = clampTelloMove(response);
+    console.log("drone right", rightVal, "sent", response);
+    if (robotBackend === "tello") {
+      tello.right(rightVal);
+      return;
+    }
+    const moveCommand = { action: "move", distance: parseCommandNumber(response, 4), heading: 90 };//For Vex
     sendCommand(moveCommand);
   });
 
   ipcMain.on("drone-down", (event, response) => {
-    let recent_val = parseInt(response);
-    let downVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
-    console.log("Sphero Left", downVal, "sent", response);
-    const moveCommand = { action: "move", distance: response, heading: 270 };//For Vex
+    let downVal = clampTelloMove(response);
+    console.log("drone left", downVal, "sent", response);
+    if (robotBackend === "tello") {
+      tello.left(downVal);
+      return;
+    }
+    const moveCommand = { action: "move", distance: parseCommandNumber(response, 4), heading: 270 };//For Vex
     sendCommand(moveCommand);
   });
 
   ipcMain.on("drone-forward", (event, response) => {
-    let recent_val = parseInt(response);
-    let forwardVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
+    let forwardVal = clampTelloMove(response);
     console.log("drone forward", forwardVal, "sent", response);
-    const moveCommand = { action: "move", distance: response, heading: 0 };//For Vex
+    if (robotBackend === "tello") {
+      tello.forward(forwardVal);
+      return;
+    }
+    const moveCommand = { action: "move", distance: parseCommandNumber(response, 4), heading: 0 };//For Vex
     sendCommand(moveCommand);
   });
 
   ipcMain.on("drone-back", (event, response) => {
-    let recent_val = parseInt(response);
-    let backVal = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
+    let backVal = clampTelloMove(response);
     console.log("drone back", backVal, "sent", response);
+    if (robotBackend === "tello") {
+      tello.back(backVal);
+      return;
+    }
     // let val = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     // console.log("drone back", val, "sent", response);
-    const moveCommand = { action: "move", distance: response, heading: 180 };//For Vex
+    const moveCommand = { action: "move", distance: parseCommandNumber(response, 4), heading: 180 };//For Vex
     sendCommand(moveCommand);
     // tello.back(val);
   });
 
   ipcMain.on("cw", (event, response) => {
-    let recent_val = parseInt(response);
+    let recent_val = parseCommandNumber(response, 90);
     //let val = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     console.log("cw", recent_val, "sent", response);
-    tello.cw(recent_val);
+    if (robotBackend === "tello") {
+      tello.cw(recent_val);
+      return;
+    }
+    sendCommand({ action: "turn_right", degrees: recent_val });
   });
 
   ipcMain.on("ccw", (event, response) => {
-    let recent_val = parseInt(response);
+    let recent_val = parseCommandNumber(response, 90);
     //let val = recent_val > maxSpeed ? maxSpeed : recent_val < minSpeed ? minSpeed : recent_val;
     console.log("ccw", recent_val, "sent", response);
-    tello.ccw(recent_val);
+    if (robotBackend === "tello") {
+      tello.ccw(recent_val);
+      return;
+    }
+    sendCommand({ action: "turn_left", degrees: recent_val });
   });
 
-  // Robot movement commands
+  //Vex commands
   ipcMain.on("vex-turn-left", (event, degrees) => {
     console.log(`[VEX] Turn left ${degrees}°`);
     const turnCommand = { action: "turn_left", degrees: degrees };
@@ -679,46 +885,46 @@ async function createWindow() {
   });
 
   ipcMain.on("vex-forward", (event, distance) => {
-    console.log(`[${robotDisplayName}] Move forward ${distance} inches`);
+    console.log(`[VEX] Move forward ${distance} inches`);
     const moveCommand = { action: "move", distance: distance, heading: 0 };
     sendCommand(moveCommand);
   });
 
   ipcMain.on("vex-back", (event, distance) => {
-    console.log(`[${robotDisplayName}] Move back ${distance} inches`);
+    console.log(`[VEX] Move back ${distance} inches`);
     const moveCommand = { action: "move", distance: distance, heading: 180 };
     sendCommand(moveCommand);
   });
 
   ipcMain.on("vex-left", (event, distance) => {
-    console.log(`[${robotDisplayName}] Move left ${distance} inches`);
+    console.log(`[VEX] Move left ${distance} inches`);
     const moveCommand = { action: "move", distance: distance, heading: 270 };
     sendCommand(moveCommand);
   });
 
   ipcMain.on("vex-right", (event, distance) => {
-    console.log(`[${robotDisplayName}] Move right ${distance} inches`);
+    console.log(`[VEX] Move right ${distance} inches`);
     const moveCommand = { action: "move", distance: distance, heading: 90 };
     sendCommand(moveCommand);
   });
 
-  // Robot kicker handler
+  // VEX kicker handler
   ipcMain.on("vex-kicker", (event, type) => {
     const t = String(type || "").toLowerCase();
-    console.log(`[${robotDisplayName}] Kicker action: ${t}`);
+    console.log(`[VEX] Kicker action: ${t}`);
     const kickCommand = { action: "kicker", type: t };
     sendCommand(kickCommand);
   });
 
-  // Robot reconnect handler
+  // VEX Reconnect handler
   ipcMain.handle("vex-reconnect", async (event) => {
     // Guard: don't proceed if window is gone
     if (!win || win.isDestroyed()) {
-      console.warn(`[${robotDisplayName}] Reconnect aborted: window destroyed`);
+      console.warn(`[${getRobotDisplayName()}] Reconnect aborted: window destroyed`);
       return { success: false, message: 'Window closed' };
     }
 
-    console.log(`[${robotDisplayName}] Reconnect requested`);
+    console.log(`[${getRobotDisplayName()}] Reconnect requested`);
     const result = await reconnectVEX();
     return result;
   });
@@ -726,29 +932,75 @@ async function createWindow() {
   // Manual status request from renderer
   ipcMain.on('vex-status-request', () => pollRobotStatus());
 
+  ipcMain.handle("mechdog-scan", async () => {
+    if (robotBackend !== "mechdog") {
+      await switchOutputTarget("mechdog");
+    }
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      throw new Error("MechDog backend is not connected");
+    }
+
+    const response = await sendWsCommand({ action: "scan_devices", timeout: 6.0 }, 15000);
+    if (response.status !== "success") {
+      throw new Error(response.message || "Failed to scan for MechDogs");
+    }
+    return response.devices || [];
+  });
+
+  ipcMain.handle("mechdog-select", async (event, device) => {
+    const address = String(device?.address || "").trim();
+    const name = String(device?.name || "").trim();
+    if (!address) {
+      throw new Error("A MechDog address is required");
+    }
+
+    if (robotBackend !== "mechdog") {
+      await switchOutputTarget("mechdog");
+    }
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      throw new Error("MechDog backend is not connected");
+    }
+
+    const response = await sendWsCommand({ action: "select_device", address, name });
+    if (response.status !== "success") {
+      throw new Error(response.message || "Failed to select MechDog");
+    }
+
+    mechdogSelection = { address, name };
+    saveMechDogSelection(mechdogSelection);
+    await reconnectVEX();
+    pollRobotStatus();
+
+    return { success: true, address, name };
+  });
+
+  ipcMain.handle("mechdog-get-selection", () => getMechDogSelection());
+
+  ipcMain.on("set-output-target", (event, target) => {
+    switchOutputTarget(String(target || "vex")).catch((error) => {
+      console.error("Failed to switch output target:", error);
+    });
+  });
+
   let isUp = false;
 
-  // ipcMain.on("manual-control", (event, response) => {
-  //   //console.log("index", response);
-  //   switch (response) {
-  //     case "takeoff":
-  //       isUp = true;
-  //       tello.takeoff();
-  //       break;
-  //     case "land":
-  //       isUp = true;
-  //       tello.land();
-  //       break;
-  //     case "up":
-  //       tello.up(20);
-  //       break;
-  //     case "down":
-  //       tello.down(20);
-  //       break;
-  //     default:
-  //       break;
-  //   }
-  // });
+  ipcMain.on("manual-control", (event, response) => {
+    const command = String(response || "").toLowerCase();
+
+    if (command === "takeoff") {
+      isUp = true;
+      sendCommand({ action: "takeoff" });
+      return;
+    }
+
+    if (command === "land") {
+      isUp = false;
+      sendCommand({ action: "land" });
+      return;
+    }
+
+    console.warn("Unsupported manual control command:", response);
+  });
 
   ipcMain.on("control-signal", (event, response) => {
     /*

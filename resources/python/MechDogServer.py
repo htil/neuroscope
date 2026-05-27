@@ -50,6 +50,50 @@ class MechDogController:
         self._connect_lock = asyncio.Lock()
         self._motion_lock = asyncio.Lock()
 
+    async def scan_devices(self, timeout=6.0):
+        logger.info("Scanning for nearby MechDogs for %.1f seconds...", timeout)
+        devices = await BleakScanner.discover(timeout=float(timeout))
+        results = []
+        for device in devices:
+            if not device.name or not device.name.lower().startswith(self.device_name_prefix):
+                continue
+            results.append(
+                {
+                    "name": device.name,
+                    "address": device.address,
+                    "rssi": getattr(device, "rssi", None),
+                }
+            )
+
+        results.sort(key=lambda item: ((item.get("name") or ""), (item.get("address") or "")))
+        return results
+
+    async def select_device(self, address, name=None):
+        selected_address = str(address or "").strip()
+        if not selected_address:
+            raise ValueError("A MechDog Bluetooth address is required")
+
+        should_disconnect = (
+            self.client is not None
+            and self.client.is_connected
+            and self.device_address
+            and self.device_address.lower() != selected_address.lower()
+        )
+        if should_disconnect:
+            await self.disconnect()
+
+        self.device_address = selected_address
+        self.device_name = str(name or self.device_name or "").strip() or None
+        self.last_error = None
+
+        return {
+            "status": "success",
+            "action": "select_device",
+            "device_name": self.device_name,
+            "device_address": self.device_address,
+            "robot_connected": bool(self.connected and self.client and self.client.is_connected),
+        }
+
     async def _find_device(self):
         if self.device_address:
             logger.info("Using configured MechDog address: %s", self.device_address)
@@ -311,6 +355,9 @@ controller = MechDogController()
 
 
 async def try_connect_robot_once():
+    if not controller.device_address:
+        logger.info("No MechDog selected yet; waiting for an explicit device choice")
+        return
     try:
         await controller.connect()
     except Exception as exc:
@@ -353,6 +400,17 @@ async def handle_command(websocket, path=None):
                     response = await controller.get_battery()
                 elif action == "sonar":
                     response = await controller.get_sonar_distance()
+                elif action == "scan_devices":
+                    response = {
+                        "status": "success",
+                        "action": "scan_devices",
+                        "devices": await controller.scan_devices(command.get("timeout", 6.0)),
+                    }
+                elif action == "select_device":
+                    response = await controller.select_device(
+                        command.get("address", ""),
+                        command.get("name"),
+                    )
                 elif action in ("status", "get_status"):
                     response = controller.get_status()
                 elif action == "reconnect_robot":
@@ -385,6 +443,10 @@ async def handle_command(websocket, path=None):
             except Exception as exc:
                 controller.last_error = str(exc)
                 response = {"status": "error", "message": str(exc)}
+
+            request_id = command.get("request_id") if isinstance(command, dict) else None
+            if request_id is not None and isinstance(response, dict):
+                response["request_id"] = request_id
 
             await websocket.send(json.dumps(response))
     except websockets.exceptions.ConnectionClosed:

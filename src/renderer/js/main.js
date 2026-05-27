@@ -13,8 +13,12 @@ import { Signal } from "./signal.js";
 import { FeatureExtractor } from "./feature-extractor.js";
 import { ChannelVis } from "./channel_vis.js";
 import { BlocklyMain } from "./blockly-main.js";
-import { Console } from "./console.js";
+import { BandPowerVis } from "./band-power-vis.js";
 import { simpleTextView } from "./simple-text-view.js";
+import { Console } from "./console.js";
+import { SessionConfig } from "./session-config.js";
+import { SessionUI, renderSessionOptions } from "./session-ui.js";
+import { KeyboardController } from "./keyboard-controller.js";
 
 let ws;
 let wsReconnectAttempts = 0;
@@ -54,63 +58,82 @@ function sendCommand(command) {
 
 window.sendCommand = sendCommand;
 
-function updateMechdogSonarReadout(sonarDistanceMm) {
-  const sonarEl = document.getElementById("mechdog-sonar-readout");
-  if (!sonarEl) return;
-
-  const distance = Number(sonarDistanceMm);
-  if (!Number.isFinite(distance) || distance <= 0) {
-    sonarEl.textContent = "-- mm";
-    sonarEl.style.color = "#767676";
-    return;
-  }
-
-  sonarEl.textContent = `${distance} mm`;
-  if (distance < 200) {
-    sonarEl.style.color = "#db2828";
-  } else if (distance < 500) {
-    sonarEl.style.color = "#f2711c";
-  } else {
-    sonarEl.style.color = "#2185d0";
-  }
-}
-
 export const NeuroScope = class {
   constructor() {
+    this.sessionConfig = new SessionConfig();
+    renderSessionOptions();
+    this.sessionUI = new SessionUI(this.sessionConfig);
+    this.sessionUI.initialize();
+    this.keyboardController = new KeyboardController(this.sessionConfig);
+    this.keyboardController.initialize();
+
     this.blocklyMain = new BlocklyMain();
-    this.signal_handler = new Signal(512, "ganglion");
-    this.console = new Console();
+    this.signal_handler = new Signal(512);
+    this.bpBis = null;
     this.events = new Events(this.blocklyMain);
-    this.ble = new BLE(this.signal_handler.add_data_ganglion.bind(this.signal_handler));
+    this.ble = new BLE(this.addDeviceData.bind(this), "bluetooth", this.sessionConfig);
     this.feature_extractor = new FeatureExtractor(256);
     this.blocklyMain.start();
+    simpleTextView.initialize(this.blocklyMain);
+
+    this.sessionConfig.onChange((session, inputDevice, outputTarget) => {
+      this.applySession(inputDevice, outputTarget);
+    });
+
+    if (window.electronAPI?.onVexStatus) {
+      window.electronAPI.onVexStatus((status) => {
+        window.mechdogTelemetry = {
+          battery: Number(status?.battery),
+          sonarDistanceMm: Number(status?.sonarDistanceMm)
+        };
+
+        const selectButton = document.getElementById("mechdog-select");
+        const selectedAddressInput = document.getElementById("mechdog-selected-address");
+        const selectedText = status?.selectedDeviceAddress
+          ? `${status.selectedDeviceName || "MechDog"} (${status.selectedDeviceAddress})`
+          : "No MechDog selected";
+        if (selectButton) {
+          selectButton.title = status?.selectedDeviceAddress ? `Choose MechDog: ${selectedText}` : "Choose a MechDog";
+        }
+        if (selectedAddressInput) {
+          selectedAddressInput.value = selectedText;
+        }
+
+        const dot = document.getElementById("vex-status-dot");
+        if (!dot) return;
+
+        dot.className = "ui empty circular label";
+        if (!status?.wsConnected) {
+          dot.classList.add("grey");
+          dot.title = "Robot backend: disconnected";
+        } else if (!status?.robotConnected) {
+          dot.classList.add("yellow");
+          dot.title = "Robot backend connected, robot not connected";
+        } else {
+          dot.classList.add("green");
+          dot.title = "Robot connected";
+        }
+      });
+    }
+
+    if (window.electronAPI?.getSelectedMechDog) {
+      window.electronAPI.getSelectedMechDog().then((device) => {
+        const selectedText = device?.address
+          ? `${device.name || "MechDog"} (${device.address})`
+          : "No MechDog selected";
+        const selectButton = document.getElementById("mechdog-select");
+        const selectedAddressInput = document.getElementById("mechdog-selected-address");
+        if (selectButton) {
+          selectButton.title = device?.address ? `Choose MechDog: ${selectedText}` : "Choose a MechDog";
+        }
+        if (selectedAddressInput) {
+          selectedAddressInput.value = selectedText;
+        }
+      }).catch(() => { });
+    }
 
     // Ensure a defined, numeric global for wrapper functions
     window.band_powers = { delta: 0, theta: 0, alpha: 0, beta: 0, gamma: 0 };
-    window.mechdogTelemetry = { battery: 0, sonarDistanceMm: 0 };
-    window.neuroConsole = this.console;
-
-    setTimeout(() => {
-      try {
-        simpleTextView.initialize(this.blocklyMain);
-        this.console.info("NeuroBlock EMG for MechDog initialized successfully");
-      } catch (error) {
-        console.error("Failed to initialize text view:", error);
-        this.console.error("Text view initialization failed: " + error.message);
-      }
-    }, 500);
-
-    window.electronAPI.onVexStatus((status) => {
-      window.mechdogTelemetry = {
-        battery: Number.isFinite(Number(status?.battery)) ? Number(status.battery) : window.mechdogTelemetry.battery,
-        sonarDistanceMm: Number.isFinite(Number(status?.sonarDistanceMm))
-          ? Number(status.sonarDistanceMm)
-          : window.mechdogTelemetry.sonarDistanceMm,
-      };
-      updateMechdogSonarReadout(window.mechdogTelemetry.sonarDistanceMm);
-    });
-    window.electronAPI.requestVexStatus();
-    updateMechdogSonarReadout(window.mechdogTelemetry.sonarDistanceMm);
 
     const sanitize = (bp) => ({
       delta: Number.isFinite(Number(bp?.delta)) ? Number(bp.delta) : 0,
@@ -121,15 +144,67 @@ export const NeuroScope = class {
     });
 
     setInterval(() => {
-      // Ganglion EMG is rendered from its primary muscle-signal channel.
-      this.signal_handler.plot_data(0);
+      const inputDevice = this.sessionConfig.getInputDevice();
+      const channelCount = inputDevice.id === "ganglion" ? 1 : 4;
 
-      // Retain sanitized band-power values for compatible Blockly blocks.
+      for (let channel = 0; channel < channelCount; channel += 1) {
+        this.signal_handler.plot_data(channel);
+      }
+
+      if (inputDevice.panel !== "bands" || !this.bpBis) {
+        return;
+      }
+
+      // Compute and render band power
       const data = this.signal_handler.get_data();
       const band_powers = this.feature_extractor.getFormattedBandPowers(data);
 
+      // Update chart and global values used by Blockly getters
       window.band_powers = sanitize(band_powers);
+      this.bpBis.update(window.band_powers);
     }, 400);
+  }
+
+  applySession(inputDevice, outputTarget) {
+    this.signal_handler.setDeviceMode(inputDevice.id);
+
+    const title = document.getElementById("signal-panel-title");
+    if (title) {
+      title.textContent = inputDevice.panel === "bands" ? "Frequency Bands" : "Console";
+    }
+
+    const muscleEnergyReadout = document.getElementById("muscle-energy-readout");
+    if (muscleEnergyReadout) {
+      muscleEnergyReadout.style.display = inputDevice.id === "ganglion" ? "block" : "none";
+    }
+
+    if (inputDevice.panel === "bands") {
+      window.neuroConsole = null;
+      this.bpBis = new BandPowerVis();
+    } else {
+      this.bpBis = null;
+      window.neuroConsole = new Console();
+      window.neuroConsole.print(`${inputDevice.label} session ready`, "success");
+    }
+
+    document.body.dataset.inputDevice = inputDevice.id;
+    document.body.dataset.outputTarget = outputTarget.id;
+    this.blocklyMain.setOutputTarget(outputTarget.id);
+
+    if (window.electronAPI?.setOutputTarget) {
+      window.electronAPI.setOutputTarget(outputTarget.id);
+    }
+  }
+
+  addDeviceData(sample) {
+    const inputDevice = this.sessionConfig.getInputDevice();
+
+    if (inputDevice.id === "ganglion") {
+      this.signal_handler.add_data_ganglion(sample);
+      return;
+    }
+
+    this.signal_handler.add_data(sample);
   }
 };
 
