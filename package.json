@@ -29,9 +29,7 @@
     "build": "yarn vue:build",
     "vue:serve": "parcel ./src/renderer/index.html -p 3005 --dist-dir build/renderer",
     "vue:build": "cross-env NODE_ENV=production parcel build ./src/renderer/index.html --dist-dir build/renderer --public-url ./ --no-source-maps --no-scope-hoist",
-    "python:build:vex": ".venv/Scripts/python.exe -m PyInstaller VEXServer.spec --clean --noconfirm",
-    "python:build:mechdog": ".venv/Scripts/python.exe -m PyInstaller MechDogServer.spec --clean --noconfirm",
-    "python:build": "yarn python:build:vex && yarn python:build:mechdog",
+    "python:build": ".venv/Scripts/python.exe -m PyInstaller MechDogServer.spec --clean --noconfirm",
     "electron:build": "electron-builder --win nsis",
     "build:local": "yarn build && yarn python:build && yarn electron:build",
     "build:win": "yarn build && yarn python:build && yarn electron:build",
@@ -71,10 +69,6 @@
       "node_modules/**/*"
     ],
     "extraResources": [
-      {
-        "from": "dist/VEXServer.exe",
-        "to": "python/VEXServer.exe"
-      },
       {
         "from": "dist/MechDogServer.exe",
         "to": "python/MechDogServer.exe"

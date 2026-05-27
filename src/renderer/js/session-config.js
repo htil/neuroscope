@@ -6,13 +6,6 @@ export const INPUT_DEVICES = {
     bluetoothPrefixes: ["Muse-"],
     panel: "bands"
   },
-  ganglion: {
-    id: "ganglion",
-    label: "Ganglion EMG",
-    signalType: "emg",
-    bluetoothPrefixes: ["Ganglion-"],
-    panel: "console"
-  },
   keyboard: {
     id: "keyboard",
     label: "Keyboard",
@@ -23,25 +16,10 @@ export const INPUT_DEVICES = {
 };
 
 export const OUTPUT_TARGETS = {
-  vex: {
-    id: "vex",
-    label: "VEX Robot",
-    connectionType: "wifi"
-  },
-  tello: {
-    id: "tello",
-    label: "Tello Drone",
-    connectionType: "wifi"
-  },
   mechdog: {
     id: "mechdog",
     label: "MechDog",
     connectionType: "bluetooth"
-  },
-  none: {
-    id: "none",
-    label: "None",
-    connectionType: "none"
   }
 };
 
