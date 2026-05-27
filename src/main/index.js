@@ -198,14 +198,12 @@ async function reconnectVEX() {
       console.log('Sending reconnect_robot command to Python server...');
       ws.send(JSON.stringify({ action: 'reconnect_robot' }));
 
-      // Wait a bit for the reconnection to start
-      await new Promise(r => setTimeout(r, 1000));
-
-      // Request a status update
-      pollRobotStatus();
-
-      console.log('VEX AIM reconnection initiated');
-      return { success: true, message: 'Reconnecting to VEX AIM...' };
+      const robotConnected = await waitForRobotConnection();
+      if (robotConnected) {
+        console.log('VEX AIM robot connection confirmed');
+        return { success: true, message: 'Successfully connected to VEX AIM' };
+      }
+      return { success: false, message: 'VEX AIM not reachable. Connect this computer to the robot AP Wi-Fi and try again.' };
     } else {
       // WebSocket isn't connected - fall back to restarting everything
       console.log('WebSocket not connected, restarting Python server...');
@@ -241,8 +239,13 @@ async function reconnectVEX() {
         return { success: false, message: 'Failed to reconnect WebSocket after restarting Python server (5 attempts)' };
       }
 
-      console.log('✓ VEX AIM reconnection completed');
-      return { success: true, message: 'Successfully reconnected to VEX AIM' };
+      console.log('Local VEX server reconnected; checking AIM robot connection...');
+      const robotConnected = await waitForRobotConnection();
+      if (robotConnected) {
+        console.log('VEX AIM robot connection confirmed');
+        return { success: true, message: 'Successfully connected to VEX AIM' };
+      }
+      return { success: false, message: 'Local VEX server restarted, but the AIM robot is not reachable. Connect to the robot AP Wi-Fi and try again.' };
     }
   } catch (error) {
     console.error('Failed to reconnect to VEX AIM:', error);
@@ -250,6 +253,48 @@ async function reconnectVEX() {
   } finally {
     reconnectInProgress = false;
   }
+}
+
+function waitForRobotConnection(timeoutMs = 10000) {
+  return new Promise((resolve) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      resolve(false);
+      return;
+    }
+
+    let timeout;
+    let interval;
+    const cleanup = () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+      ws?.removeListener('message', onMessage);
+    };
+    const onMessage = (data) => {
+      try {
+        const msg = JSON.parse(data);
+        if (msg.action === 'status' && msg.robot_connected === true) {
+          cleanup();
+          resolve(true);
+        }
+      } catch { /* ignore unrelated messages */ }
+    };
+    const requestStatus = () => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        cleanup();
+        resolve(false);
+        return;
+      }
+      ws.send(JSON.stringify({ action: 'status' }));
+    };
+
+    ws.on('message', onMessage);
+    interval = setInterval(requestStatus, 500);
+    timeout = setTimeout(() => {
+      cleanup();
+      resolve(false);
+    }, timeoutMs);
+    requestStatus();
+  });
 }
 
 function createWebSocketConnection() {
@@ -273,6 +318,7 @@ function createWebSocketConnection() {
 
       ws.on('close', function close() {
         console.log('WebSocket connection closed');
+        win?.webContents.send('vex-status', { wsConnected: false, robotConnected: false });
       });
 
       // Increase timeout to 10 seconds and add detailed logging
