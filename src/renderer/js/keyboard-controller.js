@@ -1,8 +1,12 @@
 const KEYBOARD_BINDINGS = {
   KeyW: { label: "W", description: "Forward", command: { action: "move", distance: 2, heading: 0 }, repeat: true },
+  ArrowUp: { label: "Up Arrow", description: "Forward", command: { action: "move", distance: 2, heading: 0 }, repeat: true },
   KeyS: { label: "S", description: "Back", command: { action: "move", distance: 2, heading: 180 }, repeat: true },
+  ArrowDown: { label: "Down Arrow", description: "Back", command: { action: "move", distance: 2, heading: 180 }, repeat: true },
   KeyA: { label: "A", description: "Left", command: { action: "move", distance: 2, heading: 270 }, repeat: true },
+  ArrowLeft: { label: "Left Arrow", description: "Left", command: { action: "move", distance: 2, heading: 270 }, repeat: true },
   KeyD: { label: "D", description: "Right", command: { action: "move", distance: 2, heading: 90 }, repeat: true },
+  ArrowRight: { label: "Right Arrow", description: "Right", command: { action: "move", distance: 2, heading: 90 }, repeat: true },
   KeyQ: { label: "Q", description: "Turn Left", command: { action: "turn_left", degrees: 15 }, repeat: true },
   KeyE: { label: "E", description: "Turn Right", command: { action: "turn_right", degrees: 15 }, repeat: true },
   Space: { label: "Space", description: "Stop", command: { action: "stop" }, repeat: false }
