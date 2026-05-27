@@ -1,6 +1,6 @@
 {
   "name": "neuroblock-eeg-mechdog",
-  "description": "Neuroblock",
+  "description": "NeuroBlock EEG for MechDog",
   "version": "1.4.0",
   "author": {
     "name": "Human Technology Interaction Lab"
@@ -29,7 +29,9 @@
     "build": "yarn vue:build",
     "vue:serve": "parcel ./src/renderer/index.html -p 3005 --dist-dir build/renderer",
     "vue:build": "cross-env NODE_ENV=production parcel build ./src/renderer/index.html --dist-dir build/renderer --public-url ./ --no-source-maps --no-scope-hoist",
-    "python:build": ".venv/Scripts/python.exe -m PyInstaller MechDogServer.spec --clean --noconfirm",
+    "python:build:vex": ".venv/Scripts/python.exe -m PyInstaller VEXServer.spec --clean --noconfirm",
+    "python:build:mechdog": ".venv/Scripts/python.exe -m PyInstaller MechDogServer.spec --clean --noconfirm",
+    "python:build": "yarn python:build:vex && yarn python:build:mechdog",
     "electron:build": "electron-builder --win nsis",
     "build:local": "yarn build && yarn python:build && yarn electron:build",
     "build:win": "yarn build && yarn python:build && yarn electron:build",
@@ -69,6 +71,10 @@
       "node_modules/**/*"
     ],
     "extraResources": [
+      {
+        "from": "dist/VEXServer.exe",
+        "to": "python/VEXServer.exe"
+      },
       {
         "from": "dist/MechDogServer.exe",
         "to": "python/MechDogServer.exe"
@@ -111,6 +117,7 @@
   },
   "homepage": "./",
   "dependencies": {
+    "@openbci/utilities": "^1.0.0",
     "blockly": "^10.4.3",
     "d3": "^7.9.0",
     "js-interpreter": "^5.1.1",

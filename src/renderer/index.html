@@ -7,6 +7,144 @@
   <title>NeuroBlock EEG for MechDog</title>
   <!--<script src="https://cdn.jsdelivr.net/npm/danfojs@1.1.2/lib/bundle.min.js"></script>-->
   <link rel="stylesheet" href="css/semantic.min.css" />
+  <style>
+    #session-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    #session-summary {
+      font-weight: 700;
+      color: #1f2933;
+    }
+
+    .session-panel-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      font-weight: 700;
+      color: #333333;
+      border-bottom: 1px solid #e6e6e6;
+    }
+
+    .session-panel-body {
+      height: calc(100% - 38px);
+    }
+
+    #muscle-energy-readout {
+      position: absolute;
+      top: 8px;
+      left: 10px;
+      z-index: 5;
+      display: none;
+      padding: 6px 8px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid #d4d4d5;
+      border-radius: 4px;
+      color: #333333;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    #signal_value {
+      margin-left: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #keyboard-control-panel {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 6;
+      width: 190px;
+      padding: 10px;
+      display: none;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #d4d4d5;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      color: #1f2933;
+    }
+
+    body[data-input-device="keyboard"] #keyboard-control-panel {
+      display: block;
+    }
+
+    .keyboard-control-header {
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .keyboard-control-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 5px;
+    }
+
+    .keyboard-control-key {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 28px;
+      padding: 4px 6px;
+      border: 1px solid #e0e1e2;
+      border-radius: 4px;
+      background: #f8f8f8;
+      font-size: 12px;
+    }
+
+    .keyboard-keycap {
+      min-width: 42px;
+      padding: 2px 5px;
+      border: 1px solid #c7c7c7;
+      border-bottom-width: 2px;
+      border-radius: 3px;
+      background: #ffffff;
+      font-family: "Courier New", monospace;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .keyboard-control-key.pressed,
+    .keyboard-control-key.sent {
+      border-color: #2185d0;
+      background: #eaf4ff;
+    }
+
+    #keyboard-control-status {
+      margin-top: 8px;
+      min-height: 18px;
+      font-size: 11px;
+      color: #4b5563;
+    }
+
+    #mechdog-select .mechdog-button-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      transform: translateY(-1px);
+    }
+
+    #mechdog-select .mechdog-button-icon svg {
+      display: block;
+      width: 48px;
+      height: 48px;
+    }
+
+    #mechdog-select {
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      padding: 0 !important;
+    }
+  </style>
   <!--<link rel="stylesheet" href="css/rickshaw.min.css" /> -->
   <script src="js/jquery-3.6.0.min.js"></script>
 
@@ -17,18 +155,26 @@
 <body>
   <div class="ui two column doubling stackable grid" style="margin: 0px !important; width: 100%; height: 100vh">
     <div class="column" style="background-color: #f2f2f2; width: 45%; position: relative; z-index: 10;">
-      <div id="v" class="ui raised card centered" style="width: 100%; height: 40vh">
+      <div id="v" class="ui raised card centered" style="width: 100%; height: 40vh; position: relative;">
+        <div id="muscle-energy-readout">
+          Muscle Energy <span id="signal_value">0</span>
+        </div>
         <div id="0"></div>
         <div id="1"></div>
         <div id="2"></div>
         <div id="3"></div>
+        <div id="keyboard-control-panel"></div>
       </div>
       <div id="bands" class="ui raised card centered" style="width: 100%; height: 40vh">
-        <!-- Console will be initialized here by JavaScript -->
+        <div class="session-panel-heading">
+          <span id="signal-panel-title">Frequency Bands</span>
+          <span class="ui tiny label" id="session-input-label">Muse EEG</span>
+        </div>
+        <div id="signal-panel-body" class="session-panel-body"></div>
       </div>
       <!-- Mode Toggle Buttons - Moved below console -->
       <div id="mode-toggle"
-        style="margin-top: 10px; padding: 10px; background-color: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); position: relative; z-index: 150;">
+        style="margin-top: 10px; padding: 10px; background-color: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); position: relative; z-index: 150; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
         <div class="ui buttons">
           <button id="block-mode-btn" class="ui blue button active">
             <i class="cube icon" style="pointer-events: none;"></i> Blocks
@@ -40,6 +186,10 @@
         <button id="sync-btn" class="ui mini green button" style="margin-left: 10px" title="Convert blocks to text">
           <i class="sync icon" style="pointer-events: none;"></i> Convert
         </button>
+        <div id="session-bar">
+          <span id="session-summary">Muse EEG -> MechDog</span>
+          <button id="session-change" class="ui mini button">Change</button>
+        </div>
       </div>
     </div>
     <div class="column" style="background-color: #f2f2f2; width: 55%; position: relative; z-index: 1;">
@@ -94,20 +244,32 @@
       </button>
     </div>
 
-    <div
-      style="position: absolute; right: 5px; top: 380px; z-index: 100; display: flex; align-items: center; gap: 8px;">
+    <div style="position: absolute; right: 66px; top: 400px; z-index: 100">
       <span id="vex-status-dot" class="ui empty circular label grey" title="MechDog status: unknown"
         style="display:inline-block;"></span>
+    </div>
+
+    <div style="position: absolute; right: 5px; top: 380px; z-index: 100">
       <button id="vex-reconnect" class="huge circular ui orange icon button" style="display: inherit; margin-left: auto"
         title="Reconnect to MechDog">
         <i class="refresh icon"></i>
       </button>
     </div>
 
-    <div
-      style="position: absolute; right: 5px; top: 455px; z-index: 100; min-width: 118px; padding: 10px 12px; background: white; border-radius: 999px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); text-align: center;">
-      <div style="font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: #777;">Sonar</div>
-      <div id="mechdog-sonar-readout" style="font-size: 20px; font-weight: 700; color: #2185d0;">-- mm</div>
+    <div style="position: absolute; right: 5px; top: 440px; z-index: 100">
+      <button id="mechdog-select" class="huge circular ui blue icon button" style="display: inherit; margin-left: auto"
+        title="Choose a MechDog">
+        <span class="mechdog-button-icon" aria-hidden="true">
+          <svg viewBox="0 0 64 64" focusable="false">
+            <circle cx="20" cy="22" r="8" fill="currentColor"></circle>
+            <circle cx="32" cy="16" r="8" fill="currentColor"></circle>
+            <circle cx="44" cy="22" r="8" fill="currentColor"></circle>
+            <circle cx="18" cy="36" r="7" fill="currentColor"></circle>
+            <circle cx="46" cy="36" r="7" fill="currentColor"></circle>
+            <path d="M20 48c0-9 5-15 12-15s12 6 12 15c0 6-5 9-12 9s-12-3-12-9z" fill="currentColor"></path>
+          </svg>
+        </span>
+      </button>
     </div>
 
     <!-- File Upload-->
@@ -124,6 +286,41 @@
           display: flex;
           flex-direction: column;
         "></div>
+  </div>
+
+  <div id="session-modal" class="ui small modal">
+    <div class="header">Choose Session</div>
+    <div class="content">
+      <h4 class="ui dividing header">Input Device</h4>
+      <div id="input-device-options" class="ui buttons"></div>
+
+      <h4 class="ui dividing header" style="margin-top: 24px;">Output Target</h4>
+      <div id="output-target-options" class="ui buttons"></div>
+
+      <div class="ui message" style="margin-top: 24px;">
+        <div class="header">
+          <span id="session-input-label-modal">Session Routing</span>
+        </div>
+        <p id="session-connection-hint">Muse EEG uses Bluetooth. MechDog uses Bluetooth.</p>
+      </div>
+    </div>
+    <div class="actions">
+      <span class="ui left floated basic label">Output: <span id="session-output-label">MechDog</span></span>
+      <button id="session-start" class="ui primary button">Start Session</button>
+    </div>
+  </div>
+
+  <div id="mechdog-modal" class="ui small modal">
+    <i class="close icon"></i>
+    <div class="header">Select MechDog</div>
+    <div class="content">
+      <div class="ui action input" style="width: 100%; margin-bottom: 16px;">
+        <button id="mechdog-scan" class="ui primary button">Scan MechDogs</button>
+        <input id="mechdog-selected-address" type="text" readonly value="No MechDog selected">
+      </div>
+      <div id="mechdog-scan-status" class="ui small message">Scan to see nearby MechDogs.</div>
+      <div id="mechdog-device-list" class="ui relaxed divided selection list"></div>
+    </div>
   </div>
 
   <!--<h1>NeuroScope</h1>-->

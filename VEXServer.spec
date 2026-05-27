@@ -12,16 +12,14 @@ sys.path.insert(0, os.path.join(spec_root, 'resources', 'python'))
 hiddenimports = []
 hiddenimports += collect_submodules('websockets')
 hiddenimports += collect_submodules('websocket')
-hiddenimports += collect_submodules('bleak')
 hiddenimports += collect_submodules('ssl')
 hiddenimports += collect_submodules('asyncio')
 
 datas = []
 datas += collect_data_files('websockets')
-datas += collect_data_files('bleak')
 
 a = Analysis(
-    ['resources/python/MechDogServer.py'],
+    ['resources/python/VEXServer.py'],
     pathex=[],
     binaries=[],
     datas=datas,
@@ -45,7 +43,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='MechDogServer',
+    name='VEXServer',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

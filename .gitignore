@@ -71,10 +71,13 @@ yarn-error.log
 # Yarn Integrity file
 .yarn-integrity
 *.pyc
+__pycache__/
 
 build
 
 # Ignore virtual environments
 venv/
 .venv/
-/resources/python/vex/__pycache__
+
+# Local launch shortcuts
+*.lnk
