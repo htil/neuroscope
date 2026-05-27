@@ -564,8 +564,9 @@ class Robot():
         self._ws_audio_thread.start()
 
         atexit.register(self.exit_handler)
-        signal.signal(signal.SIGINT, self.kill_handler)
-        signal.signal(signal.SIGTERM, self.kill_handler)
+        if threading.current_thread() is threading.main_thread():
+            signal.signal(signal.SIGINT, self.kill_handler)
+            signal.signal(signal.SIGTERM, self.kill_handler)
 
         self._program_init()
 
@@ -2322,4 +2323,3 @@ class Thread():
         else:
             self.t = threading.Thread(target=func)
         self.t.start()
-    

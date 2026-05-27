@@ -126,12 +126,12 @@ export const Events = class {
 
       if (result.success) {
         if (window.neuroConsole) {
-          window.neuroConsole.print("Successfully reconnected to VEX AIM", 'success');
+          window.neuroConsole.print(result.message, 'success');
         }
         console.log("VEX reconnection successful");
       } else {
         if (window.neuroConsole) {
-          window.neuroConsole.print(`Reconnection failed: ${result.message}`, 'error');
+          window.neuroConsole.print(result.message, 'error');
         }
         console.error("VEX reconnection failed:", result.message);
       }

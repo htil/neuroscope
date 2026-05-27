@@ -6,14 +6,30 @@ from vex.vex_globals import *
 
 # Defer robot initialization to runtime to avoid exiting when AIM is not reachable
 robot = None
+robot_connecting = False
+
+def robot_is_connected():
+    if robot is None:
+        return False
+    try:
+        status_thread = robot._ws_status_thread
+        command_thread = robot._ws_cmd_thread
+        return (
+            bool(status_thread.ws.connected)
+            and bool(command_thread.ws.connected)
+            and not status_thread.is_current_status_empty()
+        )
+    except Exception:
+        return False
 
 async def try_connect_robot():
-    global robot
+    global robot, robot_connecting
     while True:
-        if robot is None:
+        if robot is None and not robot_connecting:
+            robot_connecting = True
             try:
                 print("Attempting to connect to AIM robot at 192.168.4.1...")
-                robot = Robot()
+                robot = await asyncio.to_thread(Robot)
                 print("AIM robot connected successfully.")
             except SystemExit:
                 # aim.py may call sys.exit on failure; swallow and retry later
@@ -24,6 +40,11 @@ async def try_connect_robot():
                 robot = None
                 print(f"Unexpected error connecting to AIM: {e}")
                 await asyncio.sleep(5)
+            finally:
+                robot_connecting = False
+        elif robot is not None and not robot_is_connected():
+            print("AIM robot connection lost; preparing to reconnect.")
+            await asyncio.to_thread(disconnect_robot)
         await asyncio.sleep(1)
 
 def disconnect_robot():
@@ -87,7 +108,7 @@ def disconnect_robot():
             print("Robot disconnected and ready for reconnection.")
 
 def ensure_robot():
-    if robot is None:
+    if not robot_is_connected():
         raise Exception("Robot not connected")
 
 # color_list = [
@@ -162,15 +183,10 @@ async def handle_command(websocket, path=None):
                 await websocket.send(json.dumps({"status": "success", "action": "turn_right", "degrees": degrees}))
             
             elif action == "status":
-                # Report whether the local server is up and robot is connected
-                try:
-                    rc = robot is not None
-                except NameError:
-                    rc = False
                 await websocket.send(json.dumps({
                     "status": "ok",
                     "action": "status",
-                    "robot_connected": bool(rc)
+                    "robot_connected": robot_is_connected()
                 }))
             
             elif action == "reconnect_robot":
