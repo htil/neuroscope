@@ -34,9 +34,9 @@ export class KeyboardController {
     window.addEventListener("keyup", this.handleKeyUp);
     window.addEventListener("blur", this.handleBlur);
 
-    this.sessionConfig.onChange((session, inputDevice, outputTarget) => {
+    this.sessionConfig.onChange((session, inputDevice, outputTarget, controlMode) => {
       this.outputTarget = outputTarget.id;
-      this.setActive(inputDevice.id === "keyboard");
+      this.setActive(controlMode.id === "keyboard");
     });
   }
 
@@ -81,11 +81,14 @@ export class KeyboardController {
     if (!binding) return;
 
     event.preventDefault();
+    const isFirstPress = !this.heldKeys.has(event.code);
     this.heldKeys.add(event.code);
 
-    if (!binding.repeat && !this.sentOneShotKeys.has(event.code)) {
+    if (isFirstPress && (binding.repeat || !this.sentOneShotKeys.has(event.code))) {
       this.sendBinding(event.code, binding);
-      this.sentOneShotKeys.add(event.code);
+      if (!binding.repeat) {
+        this.sentOneShotKeys.add(event.code);
+      }
     }
 
     this.updatePanel();

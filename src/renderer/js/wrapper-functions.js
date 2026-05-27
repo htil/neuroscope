@@ -116,6 +116,26 @@ export const WrapperFunctions = class {
     window.electronAPI.sendCommand({ action: "move", distance, heading: 180 });
   }
 
+  mechdog_forward(distance) {
+    window.electronAPI.sendCommand({ action: "move", distance, heading: 0 });
+  }
+
+  mechdog_left(distance) {
+    window.electronAPI.sendCommand({ action: "move", distance, heading: 270 });
+  }
+
+  mechdog_right(distance) {
+    window.electronAPI.sendCommand({ action: "move", distance, heading: 90 });
+  }
+
+  mechdog_turn_left(degrees) {
+    window.electronAPI.sendCommand({ action: "turn_left", degrees });
+  }
+
+  mechdog_turn_right(degrees) {
+    window.electronAPI.sendCommand({ action: "turn_right", degrees });
+  }
+
   mechdog_handshake() {
     window.electronAPI.sendCommand({ action: "mechdog_action", type: "handshake" });
   }
