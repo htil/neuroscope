@@ -198,28 +198,6 @@ export class TextEditor {
                 insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
                 documentation: 'Move robot backward by specified distance'
             },
-            // VEX specific functions
-            {
-                label: 'vex.turn_left',
-                kind: monaco.languages.CompletionItemKind.Method,
-                insertText: 'vex.turn_left(${1:distance})',
-                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                documentation: 'Turn VEX robot left'
-            },
-            {
-                label: 'vex.turn_right',
-                kind: monaco.languages.CompletionItemKind.Method,
-                insertText: 'vex.turn_right(${1:distance})',
-                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                documentation: 'Turn VEX robot right'
-            },
-            {
-                label: 'vex.move',
-                kind: monaco.languages.CompletionItemKind.Method,
-                insertText: 'vex.move(distance=${1:10}, direction=${2:0})',
-                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                documentation: 'Move VEX robot with distance and direction'
-            },
             // Utility functions
             {
                 label: 'wait',

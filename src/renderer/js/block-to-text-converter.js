@@ -95,20 +95,14 @@ export class BlockToTextConverter {
             case 'drone_back':
                 this.handleMovement(block, 'move_back');
                 break;
-            case 'vex_turn_left':
-                this.handleVexMovement(block, 'turn_left');
-                break;
-            case 'vex_turn_right':
-                this.handleVexMovement(block, 'turn_right');
-                break;
             case 'mechdog_turn_left':
-                this.handleVexMovement(block, 'turn_left');
+                this.handleMechDogMovement(block, 'turn_left');
                 break;
             case 'mechdog_turn_right':
-                this.handleVexMovement(block, 'turn_right');
+                this.handleMechDogMovement(block, 'turn_right');
                 break;
             case 'move':
-                this.handleVexMove(block);
+                this.handleMechDogMove(block);
                 break;
             case 'ccw':
                 this.handleRotation(block, 'counter_clockwise');
@@ -254,15 +248,15 @@ export class BlockToTextConverter {
         this.addLine(`robot.${direction}(${distance})`);
     }
 
-    handleVexMovement(block, direction) {
+    handleMechDogMovement(block, direction) {
         const distance = this.getFieldOrInputValue(block, 'distance', '4');
-        this.addLine(`vex.${direction}(${distance})`);
+        this.addLine(`mechdog.${direction}(${distance})`);
     }
 
-    handleVexMove(block) {
+    handleMechDogMove(block) {
         const distance = this.getFieldOrInputValue(block, 'distance', '10');
         const direction = this.getFieldOrInputValue(block, 'direction', '0');
-        this.addLine(`vex.move(distance=${distance}, direction=${direction})`);
+        this.addLine(`mechdog.move(distance=${distance}, direction=${direction})`);
     }
 
     handleRotation(block, direction) {

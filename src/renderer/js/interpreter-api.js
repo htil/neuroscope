@@ -23,13 +23,6 @@ export const InterpreterAPI = class {
       cw: this.wrapperFunctions.cw,
       takeoff: this.wrapperFunctions.takeoff,
       land: this.wrapperFunctions.land,
-      // VEX commands
-      vex_turn_left: this.wrapperFunctions.vex_turn_left,
-      vex_turn_right: this.wrapperFunctions.vex_turn_right,
-      vex_forward: this.wrapperFunctions.vex_forward,
-      vex_back: this.wrapperFunctions.vex_back,
-      vex_left: this.wrapperFunctions.vex_left,
-      vex_right: this.wrapperFunctions.vex_right,
       mechdog_forward: this.wrapperFunctions.mechdog_forward,
       mechdog_back: this.wrapperFunctions.mechdog_back,
       mechdog_left: this.wrapperFunctions.mechdog_left,
@@ -38,9 +31,6 @@ export const InterpreterAPI = class {
       mechdog_turn_right: this.wrapperFunctions.mechdog_turn_right,
       mechdog_handshake: this.wrapperFunctions.mechdog_handshake,
       mechdog_boxing: this.wrapperFunctions.mechdog_boxing,
-      // Kicker
-      vex_kicker: this.wrapperFunctions.vex_kicker,
-
       // ← NEW: expose muscle energy from window.filteredSample
       getMuscleEnergy: () => window.filteredSample
     };
