@@ -70,6 +70,14 @@ yarn-error.log
 .pnp.js
 # Yarn Integrity file
 .yarn-integrity
-
+*.pyc
+__pycache__/
 
 build
+
+# Ignore virtual environments
+venv/
+.venv/
+
+# Local launch shortcuts
+*.lnk

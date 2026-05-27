@@ -1,9 +1,11 @@
 import { MuseElectronClient } from "./muse-client.js";
+import { GanglionClient } from "./ganglion-client.js";
 
 export const BLE = class {
-  constructor(callback, connect_button_id = "bluetooth") {
-    this.device = new MuseElectronClient();
+  constructor(callback, connect_button_id = "bluetooth", sessionConfig = null) {
+    this.device = null;
     this.callback = callback;
+    this.sessionConfig = sessionConfig;
 
     // Connect Events
     document.getElementById(connect_button_id).onclick = function (e) {
@@ -19,7 +21,7 @@ export const BLE = class {
         //let obj = { name: list[device].deviceName, id: list[device].deviceId };
         ble_device_list.push(list[device]);
       }
-      this.build_ble_modal_list(ble_device_list);
+      this.build_ble_modal_list(this.filter_device_list(ble_device_list));
       //console.log(event, list);
     });
 
@@ -34,6 +36,20 @@ export const BLE = class {
       window.electronAPI.selectBluetoothDevice(ble_device);
       $(".ui.modal").modal("hide");
       //console.log();
+    });
+  }
+
+  filter_device_list(device_list) {
+    const inputDevice = this.sessionConfig?.getInputDevice?.();
+    const prefixes = inputDevice?.bluetoothPrefixes || [];
+
+    if (prefixes.length === 0) {
+      return [];
+    }
+
+    return device_list.filter((device) => {
+      const deviceName = device.deviceName || "";
+      return prefixes.some((prefix) => deviceName.startsWith(prefix));
     });
   }
 
@@ -57,6 +73,18 @@ export const BLE = class {
 
   build_ble_modal_list(device_list) {
     document.getElementById("ble_list").innerHTML = "";
+
+    if (device_list.length === 0) {
+      const inputDevice = this.sessionConfig?.getInputDevice?.();
+      document.getElementById("ble_list").innerHTML = `
+        <div class="ui message">
+          <div class="header">No matching devices found</div>
+          <p>Looking for ${inputDevice?.label || "the selected input device"}.</p>
+        </div>
+      `;
+      return;
+    }
+
     for (let device in device_list) {
       let _device = device_list[device];
       const node = document.createElement("div");
@@ -66,9 +94,24 @@ export const BLE = class {
   }
 
   async connect() {
+    const inputDevice = this.sessionConfig?.getInputDevice?.();
+
+    if (inputDevice?.id === "keyboard") {
+      window.neuroConsole?.print("Keyboard input does not need Bluetooth.", "info");
+      return;
+    }
+
+    this.device?.disconnect?.();
+    this.device = inputDevice?.id === "ganglion" ? new GanglionClient() : new MuseElectronClient();
+
     await this.device.connect();
 
-    // EEG DATA
+    if (inputDevice?.id === "ganglion") {
+      this.device.readings.subscribe(this.callback);
+      window.neuroConsole?.print("Ganglion EMG stream connected.", "success");
+      return;
+    }
+
     this.device.eegReadings.subscribe(this.callback);
   }
 

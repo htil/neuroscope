@@ -14,30 +14,197 @@ import { FeatureExtractor } from "./feature-extractor.js";
 import { ChannelVis } from "./channel_vis.js";
 import { BlocklyMain } from "./blockly-main.js";
 import { BandPowerVis } from "./band-power-vis.js";
+import { simpleTextView } from "./simple-text-view.js";
+import { Console } from "./console.js";
+import { SessionConfig } from "./session-config.js";
+import { SessionUI, renderSessionOptions } from "./session-ui.js";
+import { KeyboardController } from "./keyboard-controller.js";
+
+let ws;
+let wsReconnectAttempts = 0;
+const maxReconnectAttempts = 5;
+
+// function connectWebSocket() {
+//   ws = new WebSocket("ws://127.0.0.1:8777");
+
+//   ws.onopen = () => {
+//     console.log("WebSocket connection established");
+//     wsReconnectAttempts = 0;
+//   };
+
+//   ws.onerror = (error) => {
+//     console.log("WebSocket connection attempt failed, retrying...");
+//   };
+
+//   ws.onclose = () => {
+//     if (wsReconnectAttempts < maxReconnectAttempts) {
+//       wsReconnectAttempts++;
+//       console.log(`WebSocket reconnecting... attempt ${wsReconnectAttempts}`);
+//       setTimeout(connectWebSocket, 2000); // Wait 2 seconds before retry
+//     }
+//   };
+
+//   ws.onmessage = (event) => {
+//     console.log("Message from server:", event.data);
+//   };
+// }
+
+// Wait a bit before connecting to give Python server time to start
+// setTimeout(connectWebSocket, 3000);
+
+function sendCommand(command) {
+  window.electronAPI.sendCommand(command);
+}
+
+window.sendCommand = sendCommand;
 
 export const NeuroScope = class {
   constructor() {
+    this.sessionConfig = new SessionConfig();
+    renderSessionOptions();
+    this.sessionUI = new SessionUI(this.sessionConfig);
+    this.sessionUI.initialize();
+    this.keyboardController = new KeyboardController(this.sessionConfig);
+    this.keyboardController.initialize();
+
     this.blocklyMain = new BlocklyMain();
     this.signal_handler = new Signal(512);
-    this.bpBis = new BandPowerVis();
+    this.bpBis = null;
     this.events = new Events(this.blocklyMain);
-    this.ble = new BLE(this.signal_handler.add_data.bind(this.signal_handler));
+    this.ble = new BLE(this.addDeviceData.bind(this), "bluetooth", this.sessionConfig);
     this.feature_extractor = new FeatureExtractor(256);
     this.blocklyMain.start();
-    setTimeout(() => {
-      //this.ble.build_ble_modal_list(["device1", "device2"]);
-    }, 3000);
+    simpleTextView.initialize(this.blocklyMain);
+
+    this.sessionConfig.onChange((session, inputDevice, outputTarget) => {
+      this.applySession(inputDevice, outputTarget);
+    });
+
+    if (window.electronAPI?.onVexStatus) {
+      window.electronAPI.onVexStatus((status) => {
+        window.mechdogTelemetry = {
+          battery: Number(status?.battery),
+          sonarDistanceMm: Number(status?.sonarDistanceMm)
+        };
+
+        const selectButton = document.getElementById("mechdog-select");
+        const selectedAddressInput = document.getElementById("mechdog-selected-address");
+        const selectedText = status?.selectedDeviceAddress
+          ? `${status.selectedDeviceName || "MechDog"} (${status.selectedDeviceAddress})`
+          : "No MechDog selected";
+        if (selectButton) {
+          selectButton.title = status?.selectedDeviceAddress ? `Choose MechDog: ${selectedText}` : "Choose a MechDog";
+        }
+        if (selectedAddressInput) {
+          selectedAddressInput.value = selectedText;
+        }
+
+        const dot = document.getElementById("vex-status-dot");
+        if (!dot) return;
+
+        dot.className = "ui empty circular label";
+        if (!status?.wsConnected) {
+          dot.classList.add("grey");
+          dot.title = "Robot backend: disconnected";
+        } else if (!status?.robotConnected) {
+          dot.classList.add("yellow");
+          dot.title = "Robot backend connected, robot not connected";
+        } else {
+          dot.classList.add("green");
+          dot.title = "Robot connected";
+        }
+      });
+    }
+
+    if (window.electronAPI?.getSelectedMechDog) {
+      window.electronAPI.getSelectedMechDog().then((device) => {
+        const selectedText = device?.address
+          ? `${device.name || "MechDog"} (${device.address})`
+          : "No MechDog selected";
+        const selectButton = document.getElementById("mechdog-select");
+        const selectedAddressInput = document.getElementById("mechdog-selected-address");
+        if (selectButton) {
+          selectButton.title = device?.address ? `Choose MechDog: ${selectedText}` : "Choose a MechDog";
+        }
+        if (selectedAddressInput) {
+          selectedAddressInput.value = selectedText;
+        }
+      }).catch(() => { });
+    }
+
+    // Ensure a defined, numeric global for wrapper functions
+    window.band_powers = { delta: 0, theta: 0, alpha: 0, beta: 0, gamma: 0 };
+
+    const sanitize = (bp) => ({
+      delta: Number.isFinite(Number(bp?.delta)) ? Number(bp.delta) : 0,
+      theta: Number.isFinite(Number(bp?.theta)) ? Number(bp.theta) : 0,
+      alpha: Number.isFinite(Number(bp?.alpha)) ? Number(bp.alpha) : 0,
+      beta: Number.isFinite(Number(bp?.beta)) ? Number(bp.beta) : 0,
+      gamma: Number.isFinite(Number(bp?.gamma)) ? Number(bp.gamma) : 0,
+    });
 
     setInterval(() => {
-      this.signal_handler.plot_data(0);
-      this.signal_handler.plot_data(1);
-      this.signal_handler.plot_data(2);
-      this.signal_handler.plot_data(3);
-      let data = this.signal_handler.get_data();
-      let band_powers = this.feature_extractor.getFormattedBandPowers(data);
-      window.band_powers = band_powers;
-      this.bpBis.update(band_powers);
+      const inputDevice = this.sessionConfig.getInputDevice();
+      const channelCount = inputDevice.id === "ganglion" ? 1 : 4;
+
+      for (let channel = 0; channel < channelCount; channel += 1) {
+        this.signal_handler.plot_data(channel);
+      }
+
+      if (inputDevice.panel !== "bands" || !this.bpBis) {
+        return;
+      }
+
+      // Compute and render band power
+      const data = this.signal_handler.get_data();
+      const band_powers = this.feature_extractor.getFormattedBandPowers(data);
+
+      // Update chart and global values used by Blockly getters
+      window.band_powers = sanitize(band_powers);
+      this.bpBis.update(window.band_powers);
     }, 400);
+  }
+
+  applySession(inputDevice, outputTarget) {
+    this.signal_handler.setDeviceMode(inputDevice.id);
+
+    const title = document.getElementById("signal-panel-title");
+    if (title) {
+      title.textContent = inputDevice.panel === "bands" ? "Frequency Bands" : "Console";
+    }
+
+    const muscleEnergyReadout = document.getElementById("muscle-energy-readout");
+    if (muscleEnergyReadout) {
+      muscleEnergyReadout.style.display = inputDevice.id === "ganglion" ? "block" : "none";
+    }
+
+    if (inputDevice.panel === "bands") {
+      window.neuroConsole = null;
+      this.bpBis = new BandPowerVis();
+    } else {
+      this.bpBis = null;
+      window.neuroConsole = new Console();
+      window.neuroConsole.print(`${inputDevice.label} session ready`, "success");
+    }
+
+    document.body.dataset.inputDevice = inputDevice.id;
+    document.body.dataset.outputTarget = outputTarget.id;
+    this.blocklyMain.setOutputTarget(outputTarget.id);
+
+    if (window.electronAPI?.setOutputTarget) {
+      window.electronAPI.setOutputTarget(outputTarget.id);
+    }
+  }
+
+  addDeviceData(sample) {
+    const inputDevice = this.sessionConfig.getInputDevice();
+
+    if (inputDevice.id === "ganglion") {
+      this.signal_handler.add_data_ganglion(sample);
+      return;
+    }
+
+    this.signal_handler.add_data(sample);
   }
 };
 

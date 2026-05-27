@@ -154,7 +154,7 @@ export const MuseElectronClient = class {
           namePrefix: "Muse-"
         }
       ],
-      filters: [{ services: [this.MUSE_SERVICE] }]
+      optionalServices: [this.MUSE_SERVICE, 0xfe84]
       //acceptAllDevices: true,
     });
 
