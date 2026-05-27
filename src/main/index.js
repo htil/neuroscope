@@ -337,7 +337,7 @@ async function createWindow() {
   win = new BrowserWindow({
     width: 1200,
     height: 1000,
-    title: "NeuroBlock EEG for VEX",
+    title: "NeuroBlock EMG for VEX",
     icon: path.join(__dirname, "icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js")
