@@ -1,4 +1,4 @@
-import { INPUT_DEVICES } from "./session-config.js";
+import { CONTROL_MODES } from "./session-config.js";
 
 export class SessionUI {
   constructor(sessionConfig) {
@@ -6,7 +6,7 @@ export class SessionUI {
   }
 
   initialize() {
-    this.bindOptionButtons("input-device-option", "inputDevice");
+    this.bindOptionButtons("control-mode-option", "controlMode");
 
     const changeButton = document.getElementById("session-change");
     if (changeButton) {
@@ -18,8 +18,8 @@ export class SessionUI {
       startButton.addEventListener("click", () => this.closeModal());
     }
 
-    this.sessionConfig.onChange((session, inputDevice, outputTarget) => {
-      this.render(session, inputDevice, outputTarget);
+    this.sessionConfig.onChange((session, inputDevice, outputTarget, controlMode) => {
+      this.render(session, inputDevice, outputTarget, controlMode);
     });
 
     if (!window.localStorage.getItem("neuroblock.session")) {
@@ -35,16 +35,16 @@ export class SessionUI {
     });
   }
 
-  render(session, inputDevice, outputTarget) {
-    this.renderSummary(inputDevice, outputTarget);
+  render(session, inputDevice, outputTarget, controlMode) {
+    this.renderSummary(inputDevice, outputTarget, controlMode);
     this.renderOptions(session);
-    this.renderConnectionHint(inputDevice, outputTarget);
+    this.renderConnectionHint(outputTarget, controlMode);
   }
 
-  renderSummary(inputDevice, outputTarget) {
+  renderSummary(inputDevice, outputTarget, controlMode) {
     const summary = document.getElementById("session-summary");
     if (summary) {
-      summary.textContent = `${inputDevice.label} -> ${outputTarget.label}`;
+      summary.textContent = `${controlMode.label} Control`;
     }
 
     const inputLabel = document.getElementById("session-input-label");
@@ -59,7 +59,7 @@ export class SessionUI {
   }
 
   renderOptions(session) {
-    this.setActiveOption("input-device-option", session.inputDevice);
+    this.setActiveOption("control-mode-option", session.controlMode);
   }
 
   setActiveOption(className, activeValue) {
@@ -70,22 +70,13 @@ export class SessionUI {
     });
   }
 
-  renderConnectionHint(inputDevice, outputTarget) {
+  renderConnectionHint(outputTarget, controlMode) {
     const hint = document.getElementById("session-connection-hint");
     if (!hint) return;
 
-    const inputConnection =
-      inputDevice.bluetoothPrefixes.length > 0
-        ? `${inputDevice.label} uses Bluetooth`
-        : `${inputDevice.label} does not need Bluetooth`;
-    const outputConnection =
-      outputTarget.connectionType === "wifi"
-        ? `${outputTarget.label} uses its Wi-Fi access point`
-        : outputTarget.connectionType === "bluetooth"
-          ? `${outputTarget.label} uses Bluetooth`
-          : `${outputTarget.label} output is disabled`;
-
-    hint.textContent = `${inputConnection}. ${outputConnection}.`;
+    hint.textContent = controlMode.id === "keyboard"
+      ? "Drive MechDog with the arrow keys or W, A, S, and D."
+      : `${outputTarget.label} uses Bluetooth.`;
   }
 
   openModal() {
@@ -104,10 +95,10 @@ export class SessionUI {
 }
 
 export function renderSessionOptions() {
-  const inputContainer = document.getElementById("input-device-options");
+  const inputContainer = document.getElementById("control-mode-options");
   if (inputContainer) {
-    inputContainer.innerHTML = Object.values(INPUT_DEVICES)
-      .map((device) => optionButton("input-device-option", device.id, device.label))
+    inputContainer.innerHTML = Object.values(CONTROL_MODES)
+      .map((mode) => optionButton("control-mode-option", mode.id, mode.label))
       .join("");
   }
 

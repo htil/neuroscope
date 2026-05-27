@@ -76,8 +76,8 @@ export const NeuroScope = class {
     this.blocklyMain.start();
     simpleTextView.initialize(this.blocklyMain);
 
-    this.sessionConfig.onChange((session, inputDevice, outputTarget) => {
-      this.applySession(inputDevice, outputTarget);
+    this.sessionConfig.onChange((session, inputDevice, outputTarget, controlMode) => {
+      this.applySession(inputDevice, outputTarget, controlMode);
     });
 
     if (window.electronAPI?.onVexStatus) {
@@ -165,7 +165,7 @@ export const NeuroScope = class {
     }, 400);
   }
 
-  applySession(inputDevice, outputTarget) {
+  applySession(inputDevice, outputTarget, controlMode) {
     this.signal_handler.setDeviceMode(inputDevice.id);
 
     const title = document.getElementById("signal-panel-title");
@@ -189,6 +189,7 @@ export const NeuroScope = class {
 
     document.body.dataset.inputDevice = inputDevice.id;
     document.body.dataset.outputTarget = outputTarget.id;
+    document.body.dataset.controlMode = controlMode.id;
     this.blocklyMain.setOutputTarget(outputTarget.id);
 
     if (window.electronAPI?.setOutputTarget) {

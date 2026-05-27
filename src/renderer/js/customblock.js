@@ -704,6 +704,51 @@ javascriptGenerator.forBlock["mechdog_back"] = function (block, generator) {
   return `mechdog_back(${distance});\n`;
 };
 
+function createMechDogDistanceBlock(type, label, functionName) {
+  Blockly.Blocks[type] = {
+    init: function () {
+      this.jsonInit({
+        type,
+        message0: `${label} %1 inches`,
+        args0: [{ type: "input_value", name: "distance", check: "Number" }],
+        previousStatement: null,
+        nextStatement: null,
+        colour: 70
+      });
+    }
+  };
+
+  javascriptGenerator.forBlock[type] = function (block, generator) {
+    var distance = generator.valueToCode(block, "distance", Order.ATOMIC) || "4";
+    return `${functionName}(${distance});\n`;
+  };
+}
+
+function createMechDogTurnBlock(type, label, functionName) {
+  Blockly.Blocks[type] = {
+    init: function () {
+      this.jsonInit({
+        type,
+        message0: label,
+        args0: [],
+        previousStatement: null,
+        nextStatement: null,
+        colour: 70
+      });
+    }
+  };
+
+  javascriptGenerator.forBlock[type] = function () {
+    return `${functionName}(90);\n`;
+  };
+}
+
+createMechDogDistanceBlock("mechdog_forward", "forward", "mechdog_forward");
+createMechDogDistanceBlock("mechdog_left", "left", "mechdog_left");
+createMechDogDistanceBlock("mechdog_right", "right", "mechdog_right");
+createMechDogTurnBlock("mechdog_turn_left", "turn left", "mechdog_turn_left");
+createMechDogTurnBlock("mechdog_turn_right", "turn right", "mechdog_turn_right");
+
 const MECHDOG_HANDSHAKE_WAIT_SECONDS = 4;
 const MECHDOG_BOXING_WAIT_SECONDS = 8;
 

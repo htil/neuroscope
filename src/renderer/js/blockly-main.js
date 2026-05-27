@@ -26,7 +26,7 @@ export const BlocklyMain = class {
     //   modules: ["move", "led_control"]
     // };
 
-    let _toolbox = new Toolbox(this.getToolboxCategories("vex"));
+    let _toolbox = new Toolbox(this.getToolboxCategories("mechdog"));
 
     this.workspace = Blockly.inject("blocklyDiv", {
       toolbox: _toolbox.toString(),
@@ -127,7 +127,10 @@ export const BlocklyMain = class {
       vex_back: "back",
       vex_left: "left",
       vex_right: "right",
+      mechdog_forward: "forward",
       mechdog_back: "back",
+      mechdog_left: "left",
+      mechdog_right: "right",
       mechdog_handshake: "handshake",
       mechdog_boxing: "boxing",
       controls_if: "if"
@@ -284,7 +287,10 @@ export const BlocklyMain = class {
           case "vex_back":
           case "vex_left":
           case "vex_right":
+          case "mechdog_forward":
           case "mechdog_back":
+          case "mechdog_left":
+          case "mechdog_right":
             this.validateRequiredInput(
               errors,
               block,

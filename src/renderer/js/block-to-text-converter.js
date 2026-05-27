@@ -101,6 +101,12 @@ export class BlockToTextConverter {
             case 'vex_turn_right':
                 this.handleVexMovement(block, 'turn_right');
                 break;
+            case 'mechdog_turn_left':
+                this.handleVexMovement(block, 'turn_left');
+                break;
+            case 'mechdog_turn_right':
+                this.handleVexMovement(block, 'turn_right');
+                break;
             case 'move':
                 this.handleVexMove(block);
                 break;

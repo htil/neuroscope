@@ -69,7 +69,7 @@
       color: #1f2933;
     }
 
-    body[data-input-device="keyboard"] #keyboard-control-panel {
+    body[data-control-mode="keyboard"] #keyboard-control-panel {
       display: block;
     }
 
@@ -187,7 +187,7 @@
           <i class="sync icon" style="pointer-events: none;"></i> Convert
         </button>
         <div id="session-bar">
-          <span id="session-summary">Ganglion EMG -> MechDog</span>
+          <span id="session-summary">MechDog Control</span>
           <button id="session-change" class="ui mini button">Change</button>
         </div>
       </div>
@@ -289,16 +289,16 @@
   </div>
 
   <div id="session-modal" class="ui small modal">
-    <div class="header">Choose Control Input</div>
+    <div class="header">Choose Control Mode</div>
     <div class="content">
-      <h4 class="ui dividing header">Input Device</h4>
-      <div id="input-device-options" class="ui buttons"></div>
+      <h4 class="ui dividing header">Control Mode</h4>
+      <div id="control-mode-options" class="ui buttons"></div>
 
       <div class="ui message" style="margin-top: 24px;">
         <div class="header">
           <span id="session-input-label-modal">MechDog Control</span>
         </div>
-        <p id="session-connection-hint">Ganglion EMG uses Bluetooth. MechDog uses Bluetooth.</p>
+        <p id="session-connection-hint">MechDog uses Bluetooth.</p>
       </div>
     </div>
     <div class="actions">

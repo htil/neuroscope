@@ -30,7 +30,12 @@ export const InterpreterAPI = class {
       vex_back: this.wrapperFunctions.vex_back,
       vex_left: this.wrapperFunctions.vex_left,
       vex_right: this.wrapperFunctions.vex_right,
+      mechdog_forward: this.wrapperFunctions.mechdog_forward,
       mechdog_back: this.wrapperFunctions.mechdog_back,
+      mechdog_left: this.wrapperFunctions.mechdog_left,
+      mechdog_right: this.wrapperFunctions.mechdog_right,
+      mechdog_turn_left: this.wrapperFunctions.mechdog_turn_left,
+      mechdog_turn_right: this.wrapperFunctions.mechdog_turn_right,
       mechdog_handshake: this.wrapperFunctions.mechdog_handshake,
       mechdog_boxing: this.wrapperFunctions.mechdog_boxing,
       // Kicker

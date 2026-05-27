@@ -5,13 +5,6 @@ export const INPUT_DEVICES = {
     signalType: "emg",
     bluetoothPrefixes: ["Ganglion-"],
     panel: "console"
-  },
-  keyboard: {
-    id: "keyboard",
-    label: "Keyboard",
-    signalType: "keyboard",
-    bluetoothPrefixes: [],
-    panel: "console"
   }
 };
 
@@ -23,11 +16,23 @@ export const OUTPUT_TARGETS = {
   }
 };
 
+export const CONTROL_MODES = {
+  mechdog: {
+    id: "mechdog",
+    label: "MechDog"
+  },
+  keyboard: {
+    id: "keyboard",
+    label: "Keyboard"
+  }
+};
+
 const STORAGE_KEY = "neuroblock.session.emg-mechdog";
 
 export const DEFAULT_SESSION = {
   inputDevice: "ganglion",
-  outputTarget: "mechdog"
+  outputTarget: "mechdog",
+  controlMode: "mechdog"
 };
 
 export class SessionConfig {
@@ -46,9 +51,12 @@ export class SessionConfig {
   }
 
   normalize(session = {}) {
-    const inputDevice = INPUT_DEVICES[session.inputDevice] ? session.inputDevice : DEFAULT_SESSION.inputDevice;
-    const outputTarget = OUTPUT_TARGETS[session.outputTarget] ? session.outputTarget : DEFAULT_SESSION.outputTarget;
-    return { inputDevice, outputTarget };
+    const controlMode = CONTROL_MODES[session.controlMode] ? session.controlMode : DEFAULT_SESSION.controlMode;
+    return {
+      inputDevice: DEFAULT_SESSION.inputDevice,
+      outputTarget: DEFAULT_SESSION.outputTarget,
+      controlMode
+    };
   }
 
   getSession() {
@@ -63,6 +71,10 @@ export class SessionConfig {
     return OUTPUT_TARGETS[this.current.outputTarget];
   }
 
+  getControlMode() {
+    return CONTROL_MODES[this.current.controlMode];
+  }
+
   setSession(session) {
     this.current = this.normalize({ ...this.current, ...session });
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(this.current));
@@ -71,7 +83,7 @@ export class SessionConfig {
 
   onChange(listener) {
     this.listeners.add(listener);
-    listener(this.getSession(), this.getInputDevice(), this.getOutputTarget());
+    listener(this.getSession(), this.getInputDevice(), this.getOutputTarget(), this.getControlMode());
     return () => this.listeners.delete(listener);
   }
 
@@ -79,6 +91,7 @@ export class SessionConfig {
     const session = this.getSession();
     const inputDevice = this.getInputDevice();
     const outputTarget = this.getOutputTarget();
-    this.listeners.forEach((listener) => listener(session, inputDevice, outputTarget));
+    const controlMode = this.getControlMode();
+    this.listeners.forEach((listener) => listener(session, inputDevice, outputTarget, controlMode));
   }
 }
