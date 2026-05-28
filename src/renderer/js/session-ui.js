@@ -75,7 +75,7 @@ export class SessionUI {
     if (!hint) return;
 
     hint.textContent = controlMode.id === "keyboard"
-      ? "Drive MechDog with the arrow keys or W, A, S, and D."
+      ? "Drive MechDog with the arrow keys. Use the emote buttons for actions."
       : `${outputTarget.label} uses Bluetooth.`;
   }
 

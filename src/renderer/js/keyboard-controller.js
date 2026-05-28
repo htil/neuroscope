@@ -1,25 +1,22 @@
 const KEYBOARD_BINDINGS = {
-  KeyW: { label: "W", description: "Forward", command: { action: "move", distance: 2, heading: 0 }, repeat: true },
-  ArrowUp: { label: "Up Arrow", displayLabel: "↑", description: "Forward", command: { action: "move", distance: 2, heading: 0 }, repeat: true },
-  KeyS: { label: "S", description: "Back", command: { action: "move", distance: 2, heading: 180 }, repeat: true },
-  ArrowDown: { label: "Down Arrow", displayLabel: "↓", description: "Back", command: { action: "move", distance: 2, heading: 180 }, repeat: true },
-  KeyA: { label: "A", description: "Left", command: { action: "move", distance: 2, heading: 270 }, repeat: true },
-  ArrowLeft: { label: "Left Arrow", displayLabel: "←", description: "Left", command: { action: "move", distance: 2, heading: 270 }, repeat: true },
-  KeyD: { label: "D", description: "Right", command: { action: "move", distance: 2, heading: 90 }, repeat: true },
-  ArrowRight: { label: "Right Arrow", displayLabel: "→", description: "Right", command: { action: "move", distance: 2, heading: 90 }, repeat: true },
-  KeyQ: { label: "Q", description: "Turn Left", command: { action: "turn_left", degrees: 15 }, repeat: true },
-  KeyE: { label: "E", description: "Turn Right", command: { action: "turn_right", degrees: 15 }, repeat: true },
+  ArrowUp: { label: "Up Arrow", description: "Forward", command: { action: "move", distance: 2, heading: 0 }, repeat: true },
+  ArrowDown: { label: "Down Arrow", description: "Back", command: { action: "move", distance: 2, heading: 180 }, repeat: true },
+  ArrowLeft: { label: "Left Arrow", description: "Left", command: { action: "move", distance: 2, heading: 270 }, repeat: true },
+  ArrowRight: { label: "Right Arrow", description: "Right", command: { action: "move", distance: 2, heading: 90 }, repeat: true },
   Space: { label: "Space", description: "Stop", command: { action: "stop" }, repeat: false }
 };
 
 const KEYBOARD_CONTROL_ROWS = [
-  { description: "Forward", keys: ["KeyW", "ArrowUp"] },
-  { description: "Back", keys: ["KeyS", "ArrowDown"] },
-  { description: "Left", keys: ["KeyA", "ArrowLeft"] },
-  { description: "Right", keys: ["KeyD", "ArrowRight"] },
-  { description: "Turn Left", keys: ["KeyQ"] },
-  { description: "Turn Right", keys: ["KeyE"] },
+  { description: "Forward", keys: ["ArrowUp"] },
+  { description: "Back", keys: ["ArrowDown"] },
+  { description: "Left", keys: ["ArrowLeft"] },
+  { description: "Right", keys: ["ArrowRight"] },
   { description: "Stop", keys: ["Space"] }
+];
+
+const MECHDOG_EMOTES = [
+  { type: "handshake", label: "Handshake", command: { action: "mechdog_action", type: "handshake" } },
+  { type: "boxing", label: "Boxing", command: { action: "mechdog_action", type: "boxing" } }
 ];
 
 export class KeyboardController {
@@ -36,6 +33,7 @@ export class KeyboardController {
     this.handleKeyDown = this.handleKeyDown.bind(this);
     this.handleKeyUp = this.handleKeyUp.bind(this);
     this.handleBlur = this.handleBlur.bind(this);
+    this.handlePanelClick = this.handlePanelClick.bind(this);
   }
 
   initialize() {
@@ -43,6 +41,9 @@ export class KeyboardController {
     window.addEventListener("keydown", this.handleKeyDown);
     window.addEventListener("keyup", this.handleKeyUp);
     window.addEventListener("blur", this.handleBlur);
+
+    const panel = document.getElementById("keyboard-control-panel");
+    panel?.addEventListener("click", this.handlePanelClick);
 
     this.sessionConfig.onChange((session, inputDevice, outputTarget, controlMode) => {
       this.outputTarget = outputTarget.id;
@@ -71,25 +72,27 @@ export class KeyboardController {
     const controls = KEYBOARD_CONTROL_ROWS
       .map((row) => `
         <div class="keyboard-control-key" data-keys="${row.keys.join(" ")}">
-          <span class="keyboard-keycaps">
-            ${row.keys.map((code) => this.renderKeycap(KEYBOARD_BINDINGS[code])).join('<span class="keyboard-key-separator">or</span>')}
-          </span>
+          ${this.renderKeycap(KEYBOARD_BINDINGS[row.keys[0]])}
           <span>${row.description}</span>
         </div>
       `)
       .join("");
 
+    const emotes = MECHDOG_EMOTES
+      .map((emote) => `<button type="button" class="ui mini button keyboard-emote-button" data-emote="${emote.type}">${emote.label}</button>`)
+      .join("");
+
     panel.innerHTML = `
       <div class="keyboard-control-header">Keyboard Control</div>
       <div class="keyboard-control-grid">${controls}</div>
+      <div class="keyboard-emote-header">Emotes</div>
+      <div class="keyboard-emote-grid">${emotes}</div>
       <div id="keyboard-control-status">Idle</div>
     `;
   }
 
   renderKeycap(binding) {
-    const label = binding.displayLabel || binding.label;
-    const title = binding.displayLabel ? ` title="${binding.label}"` : "";
-    return `<span class="keyboard-keycap"${title}>${label}</span>`;
+    return `<span class="keyboard-keycap">${binding.label}</span>`;
   }
 
   handleKeyDown(event) {
@@ -119,6 +122,18 @@ export class KeyboardController {
     this.updatePanel();
   }
 
+  handlePanelClick(event) {
+    const button = event.target?.closest?.("[data-emote]");
+    if (!button || !this.active) return;
+
+    const emote = MECHDOG_EMOTES.find((item) => item.type === button.dataset.emote);
+    if (!emote) return;
+
+    this.sendCommand(emote.command, emote.label);
+    button.classList.add("sent");
+    window.setTimeout(() => button.classList.remove("sent"), 120);
+  }
+
   handleBlur() {
     this.clearHeldKeys();
     this.updatePanel();
@@ -136,10 +151,14 @@ export class KeyboardController {
   }
 
   sendBinding(code, binding) {
-    window.electronAPI?.sendCommand?.(binding.command);
-    this.lastCommand = `${binding.label}: ${binding.description}`;
-    window.neuroConsole?.print?.(this.lastCommand, "info");
+    this.sendCommand(binding.command, `${binding.label}: ${binding.description}`);
     this.flashKey(code);
+  }
+
+  sendCommand(command, label) {
+    window.electronAPI?.sendCommand?.(command);
+    this.lastCommand = label;
+    window.neuroConsole?.print?.(this.lastCommand, "info");
     this.updatePanel();
   }
 
@@ -170,7 +189,7 @@ export class KeyboardController {
 
     panel.classList.toggle("is-active", this.active);
 
-    Object.entries(KEYBOARD_BINDINGS).forEach(([code, binding]) => {
+    Object.keys(KEYBOARD_BINDINGS).forEach((code) => {
       const element = panel.querySelector(`.keyboard-control-key[data-keys~="${code}"]`);
       element?.classList.toggle("pressed", this.heldKeys.has(code));
     });
