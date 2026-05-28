@@ -23,7 +23,7 @@ export const CONTROL_MODES = {
   },
   keyboard: {
     id: "keyboard",
-    label: "Keyboard"
+    label: "Keyboard (WASD / Arrows)"
   }
 };
 
