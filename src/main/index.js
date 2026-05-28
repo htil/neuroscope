@@ -908,14 +908,6 @@ async function createWindow() {
     sendCommand(moveCommand);
   });
 
-  // VEX kicker handler
-  ipcMain.on("vex-kicker", (event, type) => {
-    const t = String(type || "").toLowerCase();
-    console.log(`[VEX] Kicker action: ${t}`);
-    const kickCommand = { action: "kicker", type: t };
-    sendCommand(kickCommand);
-  });
-
   // VEX Reconnect handler
   ipcMain.handle("vex-reconnect", async (event) => {
     // Guard: don't proceed if window is gone

@@ -32,8 +32,6 @@ process.once("loaded", () => {
     vexBack: (distance) => ipcRenderer.send("vex-back", distance),
     vexLeft: (distance) => ipcRenderer.send("vex-left", distance),
     vexRight: (distance) => ipcRenderer.send("vex-right", distance),
-    // Kicker command IPC bridge
-    vexKicker: (type) => ipcRenderer.send("vex-kicker", type),
     vexReconnect: () => ipcRenderer.invoke("vex-reconnect"),
     scanMechDogs: () => ipcRenderer.invoke("mechdog-scan"),
     selectMechDog: (device) => ipcRenderer.invoke("mechdog-select", device),

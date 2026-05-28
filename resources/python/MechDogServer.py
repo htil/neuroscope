@@ -428,12 +428,6 @@ async def handle_command(websocket, path=None):
                     }
                 elif action == "raw_command":
                     response = await controller.raw_command(command.get("command", ""))
-                elif action == "kicker":
-                    response = {
-                        "status": "error",
-                        "action": "kicker",
-                        "message": "Kicker actions are not mapped for MechDog in this backend",
-                    }
                 elif action == "ping":
                     response = {"status": "success", "message": "pong", "timestamp": datetime.now().isoformat()}
                 else:
