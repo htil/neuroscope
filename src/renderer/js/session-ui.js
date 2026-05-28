@@ -22,6 +22,9 @@ export class SessionUI {
   }
 
   render(session, inputDevice, outputTarget, controlMode) {
+    document.body.dataset.inputDevice = inputDevice.id;
+    document.body.dataset.outputTarget = outputTarget.id;
+    document.body.dataset.controlMode = controlMode.id;
     this.renderSummary(inputDevice, outputTarget, controlMode);
     this.renderConnectionHint(outputTarget, controlMode);
   }
