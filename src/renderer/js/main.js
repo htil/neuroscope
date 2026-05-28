@@ -17,7 +17,7 @@ import { BandPowerVis } from "./band-power-vis.js";
 import { simpleTextView } from "./simple-text-view.js";
 import { Console } from "./console.js";
 import { SessionConfig } from "./session-config.js";
-import { SessionUI, renderSessionOptions } from "./session-ui.js";
+import { SessionUI } from "./session-ui.js";
 import { KeyboardController } from "./keyboard-controller.js";
 
 let ws;
@@ -61,7 +61,6 @@ window.sendCommand = sendCommand;
 export const NeuroScope = class {
   constructor() {
     this.sessionConfig = new SessionConfig();
-    renderSessionOptions();
     this.sessionUI = new SessionUI(this.sessionConfig);
     this.sessionUI.initialize();
     this.keyboardController = new KeyboardController(this.sessionConfig);
