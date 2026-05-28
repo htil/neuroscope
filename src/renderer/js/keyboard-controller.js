@@ -1,16 +1,26 @@
 const KEYBOARD_BINDINGS = {
   KeyW: { label: "W", description: "Forward", command: { action: "move", distance: 2, heading: 0 }, repeat: true },
-  ArrowUp: { label: "Up Arrow", description: "Forward", command: { action: "move", distance: 2, heading: 0 }, repeat: true },
+  ArrowUp: { label: "Up Arrow", displayLabel: "↑", description: "Forward", command: { action: "move", distance: 2, heading: 0 }, repeat: true },
   KeyS: { label: "S", description: "Back", command: { action: "move", distance: 2, heading: 180 }, repeat: true },
-  ArrowDown: { label: "Down Arrow", description: "Back", command: { action: "move", distance: 2, heading: 180 }, repeat: true },
+  ArrowDown: { label: "Down Arrow", displayLabel: "↓", description: "Back", command: { action: "move", distance: 2, heading: 180 }, repeat: true },
   KeyA: { label: "A", description: "Left", command: { action: "move", distance: 2, heading: 270 }, repeat: true },
-  ArrowLeft: { label: "Left Arrow", description: "Left", command: { action: "move", distance: 2, heading: 270 }, repeat: true },
+  ArrowLeft: { label: "Left Arrow", displayLabel: "←", description: "Left", command: { action: "move", distance: 2, heading: 270 }, repeat: true },
   KeyD: { label: "D", description: "Right", command: { action: "move", distance: 2, heading: 90 }, repeat: true },
-  ArrowRight: { label: "Right Arrow", description: "Right", command: { action: "move", distance: 2, heading: 90 }, repeat: true },
+  ArrowRight: { label: "Right Arrow", displayLabel: "→", description: "Right", command: { action: "move", distance: 2, heading: 90 }, repeat: true },
   KeyQ: { label: "Q", description: "Turn Left", command: { action: "turn_left", degrees: 15 }, repeat: true },
   KeyE: { label: "E", description: "Turn Right", command: { action: "turn_right", degrees: 15 }, repeat: true },
   Space: { label: "Space", description: "Stop", command: { action: "stop" }, repeat: false }
 };
+
+const KEYBOARD_CONTROL_ROWS = [
+  { description: "Forward", keys: ["KeyW", "ArrowUp"] },
+  { description: "Back", keys: ["KeyS", "ArrowDown"] },
+  { description: "Left", keys: ["KeyA", "ArrowLeft"] },
+  { description: "Right", keys: ["KeyD", "ArrowRight"] },
+  { description: "Turn Left", keys: ["KeyQ"] },
+  { description: "Turn Right", keys: ["KeyE"] },
+  { description: "Stop", keys: ["Space"] }
+];
 
 export class KeyboardController {
   constructor(sessionConfig) {
@@ -58,11 +68,13 @@ export class KeyboardController {
     const panel = document.getElementById("keyboard-control-panel");
     if (!panel) return;
 
-    const controls = Object.values(KEYBOARD_BINDINGS)
-      .map((binding) => `
-        <div class="keyboard-control-key" data-key="${binding.label}">
-          <span class="keyboard-keycap">${binding.label}</span>
-          <span>${binding.description}</span>
+    const controls = KEYBOARD_CONTROL_ROWS
+      .map((row) => `
+        <div class="keyboard-control-key" data-keys="${row.keys.join(" ")}">
+          <span class="keyboard-keycaps">
+            ${row.keys.map((code) => this.renderKeycap(KEYBOARD_BINDINGS[code])).join('<span class="keyboard-key-separator">or</span>')}
+          </span>
+          <span>${row.description}</span>
         </div>
       `)
       .join("");
@@ -72,6 +84,12 @@ export class KeyboardController {
       <div class="keyboard-control-grid">${controls}</div>
       <div id="keyboard-control-status">Idle</div>
     `;
+  }
+
+  renderKeycap(binding) {
+    const label = binding.displayLabel || binding.label;
+    const title = binding.displayLabel ? ` title="${binding.label}"` : "";
+    return `<span class="keyboard-keycap"${title}>${label}</span>`;
   }
 
   handleKeyDown(event) {
@@ -139,7 +157,7 @@ export class KeyboardController {
     const binding = KEYBOARD_BINDINGS[code];
     if (!binding) return;
 
-    const element = document.querySelector(`.keyboard-control-key[data-key="${binding.label}"]`);
+    const element = document.querySelector(`.keyboard-control-key[data-keys~="${code}"]`);
     if (!element) return;
 
     element.classList.add("sent");
@@ -153,7 +171,7 @@ export class KeyboardController {
     panel.classList.toggle("is-active", this.active);
 
     Object.entries(KEYBOARD_BINDINGS).forEach(([code, binding]) => {
-      const element = panel.querySelector(`.keyboard-control-key[data-key="${binding.label}"]`);
+      const element = panel.querySelector(`.keyboard-control-key[data-keys~="${code}"]`);
       element?.classList.toggle("pressed", this.heldKeys.has(code));
     });
 
