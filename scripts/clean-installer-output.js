@@ -10,7 +10,7 @@ if (!outputDir) {
 }
 
 const targets = [
-  path.join(root, "build", "renderer"),
+  path.join(root, "build", "renderer-ganglion-mechdog"),
   path.join(root, "dist", "MechDogServer.exe"),
   path.resolve(root, outputDir)
 ];
@@ -22,7 +22,12 @@ for (const target of targets) {
   }
 
   if (fs.existsSync(target)) {
-    fs.rmSync(target, { recursive: true, force: true });
+    fs.rmSync(target, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 500
+    });
     console.log(`Removed ${relative}`);
   }
 }

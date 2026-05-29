@@ -637,7 +637,7 @@ async function createWindow() {
   if (isDevelopment) {
     win.loadURL(selfHost);
   } else {
-    win.loadFile(path.join(__dirname, "../../build/renderer/index.html"));
+    win.loadFile(path.join(__dirname, "../../build/renderer-ganglion-mechdog/index.html"));
   }
 
   // Only do these things when in development
