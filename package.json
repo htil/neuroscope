@@ -28,7 +28,7 @@
     "serve": "concurrently \"cross-env BROWSER=none yarn vue:serve --port 3005\" \"wait-on http://localhost:3005 && cross-env NODE_ENV=development electron . \"",
     "build": "yarn vue:build",
     "vue:serve": "parcel ./src/renderer/index.html -p 3005 --dist-dir build/renderer-mechdog-emg",
-    "vue:build": "cross-env NODE_ENV=production parcel build ./src/renderer/index.html --dist-dir build/renderer-mechdog-emg --public-url ./ --no-source-maps --no-scope-hoist",
+    "vue:build": "cross-env NODE_ENV=production parcel build ./src/renderer/index.html --dist-dir build/renderer-mechdog-emg --public-url . --no-source-maps --no-scope-hoist",
     "python:build": ".\\.venv\\Scripts\\pyinstaller.exe VEXServer.spec --clean --noconfirm",
     "electron:build": "electron-builder build --win dir",
     "build:local": "yarn build && yarn python:build && yarn electron:build",
