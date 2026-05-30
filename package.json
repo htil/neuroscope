@@ -30,7 +30,7 @@
     "vue:serve": "parcel ./src/renderer/index.html -p 3005 --dist-dir build/renderer-mechdog-emg",
     "vue:build": "cross-env NODE_ENV=production parcel build ./src/renderer/index.html --dist-dir build/renderer-mechdog-emg --public-url . --no-source-maps --no-scope-hoist",
     "python:build": ".\\.venv\\Scripts\\pyinstaller.exe VEXServer.spec --clean --noconfirm",
-    "electron:build": "electron-builder build --win dir",
+    "electron:build": "electron-builder build --win nsis",
     "build:local": "yarn build && yarn python:build && yarn electron:build",
     "build:win": "yarn build && yarn python:build && yarn electron:build",
     "clean": "rmdir build && rmdir .cache && rmdir dist && rmdir .parcel-cache",
