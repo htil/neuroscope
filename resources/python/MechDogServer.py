@@ -125,6 +125,8 @@ class MechDogController:
         await self.client.start_notify(self.notify_uuid, self._handle_notification)
         self._notify_started = True
 
+    
+
     async def connect(self):
         async with self._connect_lock:
             if self.client and self.client.is_connected:
@@ -204,7 +206,9 @@ class MechDogController:
         async with self._motion_lock:
             await self.write_command(command)
             await asyncio.sleep(max(0.1, duration_s))
-            await self.write_command(self.command_stop)
+            for i in range(3): # make sure the command is stopped. Send multiple times to be sure. Maybe fix this later by checking the robot state.
+                await self.write_command(self.command_stop)
+            #logger.info("Pulsed command: %s for %s seconds", command, duration_s)
 
     async def led_on(self, color_name):
         logger.info("Ignoring LED request for MechDog: %s", color_name)
@@ -243,6 +247,7 @@ class MechDogController:
             )
 
         duration_s = min(3.0, max(0.25, abs(distance) * self.move_seconds_per_unit))
+        logger.info(f"Moving {distance} units for {duration_s} seconds")
         await self.pulse_command(command, duration_s)
         return {
             "status": "success",
