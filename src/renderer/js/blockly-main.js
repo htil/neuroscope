@@ -99,7 +99,7 @@ export const BlocklyMain = class {
       beta: "beta",
       gamma: "gamma",
       mechdog_battery: "dog battery",
-      mechdog_sonar: "dog sonar",
+      mechdog_sonar: "obstacle sensor",
       print: "print",
       filter_signal: "filter signal",
       drone_up: "right",
@@ -114,6 +114,7 @@ export const BlocklyMain = class {
       vex_right: "right",
       vex_turn_left: "turn left",
       vex_turn_right: "turn right",
+      mechdog_stop: "stop dog",
       mechdog_handshake: "handshake",
       mechdog_boxing: "boxing",
       controls_if: "if"

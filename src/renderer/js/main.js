@@ -57,17 +57,18 @@ function updateMechdogSonarReadout(sonarDistanceMm) {
   const sonarEl = document.getElementById("mechdog-sonar-readout");
   if (!sonarEl) return;
 
-  const distance = Number(sonarDistanceMm);
-  if (!Number.isFinite(distance) || distance <= 0) {
-    sonarEl.textContent = "-- mm";
+  const distanceMm = Number(sonarDistanceMm);
+  if (!Number.isFinite(distanceMm) || distanceMm <= 0) {
+    sonarEl.textContent = "-- in";
     sonarEl.style.color = "#767676";
     return;
   }
 
-  sonarEl.textContent = `${distance} mm`;
-  if (distance < 200) {
+  const distanceIn = distanceMm / 25.4;
+  sonarEl.textContent = `${distanceIn.toFixed(1)} in`;
+  if (distanceIn < 8) {
     sonarEl.style.color = "#db2828";
-  } else if (distance < 500) {
+  } else if (distanceIn < 20) {
     sonarEl.style.color = "#f2711c";
   } else {
     sonarEl.style.color = "#2185d0";

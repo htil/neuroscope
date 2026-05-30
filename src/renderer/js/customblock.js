@@ -176,10 +176,10 @@ export const createCustomBlocks = function () {
 
   var getMechdogSonar = {
     type: "mechdog_sonar",
-    message0: "dog sonar mm",
+    message0: "obstacle sensor inches",
     output: "Number",
     colour: 70,
-    tooltip: "Latest MechDog sonar distance in millimeters",
+    tooltip: "Latest MechDog obstacle sensor distance in inches",
     helpUrl: ""
   };
 
@@ -702,6 +702,26 @@ Blockly.Blocks["mechdog_back"] = {
 javascriptGenerator.forBlock["mechdog_back"] = function (block, generator) {
   var distance = generator.valueToCode(block, "distance", Order.ATOMIC) || "4";
   return `mechdog_back(${distance});\n`;
+};
+
+// MechDog Stop Block
+var mechdogStop = {
+  type: "mechdog_stop",
+  message0: "stop dog",
+  args0: [],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 70
+};
+
+Blockly.Blocks["mechdog_stop"] = {
+  init: function () {
+    this.jsonInit(mechdogStop);
+  }
+};
+
+javascriptGenerator.forBlock["mechdog_stop"] = function () {
+  return `mechdog_stop();\n`;
 };
 
 // MechDog Handshake Block

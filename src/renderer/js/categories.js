@@ -54,6 +54,7 @@ export const Categories = {
       "vex_right",
       "vex_turn_left",
       "vex_turn_right",
+      "mechdog_stop",
       "mechdog_handshake",
       "mechdog_boxing"
     ]

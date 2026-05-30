@@ -202,9 +202,25 @@ class MechDogController:
 
     async def pulse_command(self, command, duration_s):
         async with self._motion_lock:
-            await self.write_command(command)
-            await asyncio.sleep(max(0.1, duration_s))
-            await self.write_command(self.command_stop)
+            motion_error = None
+            try:
+                await self.write_command(command)
+                await asyncio.sleep(max(0.1, duration_s))
+            except Exception as exc:
+                motion_error = exc
+                raise
+            finally:
+                stop_error = None
+                for attempt in range(2):
+                    try:
+                        await self.write_command(self.command_stop)
+                    except Exception as exc:
+                        stop_error = exc
+                        logger.warning("Failed to send MechDog stop command: %s", exc)
+                    if attempt == 0:
+                        await asyncio.sleep(0.05)
+                if stop_error is not None and motion_error is None:
+                    raise stop_error
 
     async def led_on(self, color_name):
         logger.info("Ignoring LED request for MechDog: %s", color_name)

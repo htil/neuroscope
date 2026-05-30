@@ -65,7 +65,7 @@ export const WrapperFunctions = class {
 
   getMechdogSonarDistance() {
     const v = window?.mechdogTelemetry?.sonarDistanceMm;
-    return Number.isFinite(v) ? v : 0;
+    return Number.isFinite(v) ? v / 25.4 : 0;
   }
 
   drone_up(value) {
@@ -114,6 +114,10 @@ export const WrapperFunctions = class {
 
   mechdog_back(distance) {
     window.electronAPI.sendCommand({ action: "move", distance, heading: 180 });
+  }
+
+  mechdog_stop() {
+    window.electronAPI.sendCommand({ action: "stop" });
   }
 
   mechdog_handshake() {
