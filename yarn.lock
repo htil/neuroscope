@@ -310,6 +310,19 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
+"@openbci/utilities@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.npmjs.org/@openbci/utilities/-/utilities-1.0.0.tgz"
+  integrity sha512-fhQ4lqL2qG9TDpWnLtWPG9zbYMBNNyPF/CdJY29zpSfu6E407luYr8weuViWsGcq24PZSfC9ubaNCYa8pL4j+g==
+  dependencies:
+    buffer "^5.0.8"
+    buffer-equal "^1.0.0"
+    clone "^2.0.0"
+    gaussian "^1.0.0"
+    mathjs "^4.0.0"
+    performance-now "^2.1.0"
+    streamsearch "^0.1.2"
+
 "@parcel/babel-ast-utils@2.0.0-beta.3.1":
   version "2.0.0-beta.3.1"
   resolved "https://registry.npmjs.org/@parcel/babel-ast-utils/-/babel-ast-utils-2.0.0-beta.3.1.tgz"
@@ -1464,7 +1477,7 @@ browserslist@^4.0.0, browserslist@^4.16.6, browserslist@^4.6.6:
 buffer-crc32@~0.2.3:
   version "0.2.13"
 
-buffer-equal@1.0.0:
+buffer-equal@^1.0.0, buffer-equal@1.0.0:
   version "1.0.0"
 
 buffer-from@^1.0.0:
@@ -1473,7 +1486,7 @@ buffer-from@^1.0.0:
 buffer-xor@^1.0.3:
   version "1.0.3"
 
-buffer@^5.5.0:
+buffer@^5.0.8, buffer@^5.5.0:
   version "5.7.1"
   dependencies:
     base64-js "^1.3.1"
@@ -1706,7 +1719,7 @@ clone-response@^1.0.2:
 clone@^1.0.2:
   version "1.0.4"
 
-clone@^2.1.1:
+clone@^2.0.0, clone@^2.1.1:
   version "2.1.2"
 
 coa@^2.0.2:
@@ -1780,6 +1793,11 @@ commander@2.9.0:
 
 commander@7:
   version "7.2.0"
+
+complex.js@2.0.10:
+  version "2.0.10"
+  resolved "https://registry.npmjs.org/complex.js/-/complex.js-2.0.10.tgz"
+  integrity sha512-PsT3WqpnTjS2ijoMM8XodCi/BYO04vkS8kBg1YXcqf5KcnKVV6uXUc1eeLHhBksj8i7Vu9iQF2/6ZG9gqI6CPQ==
 
 component-emitter@^1.2.1:
   version "1.3.0"
@@ -2289,6 +2307,11 @@ decamelize@^1.2.0:
 decimal.js@^10.4.3:
   version "10.5.0"
 
+decimal.js@9.0.1:
+  version "9.0.1"
+  resolved "https://registry.npmjs.org/decimal.js/-/decimal.js-9.0.1.tgz"
+  integrity sha512-2h0iKbJwnImBk4TGk7CG1xadoA0g3LDPlQhQzbZ221zvG0p2YVUedbKIPsOZXKZGx6YmZMJKYOalpCMxSdDqTQ==
+
 decode-uri-component@^0.2.0:
   version "0.2.0"
 
@@ -2664,6 +2687,11 @@ escape-goat@^2.0.0:
 escape-html@~1.0.3:
   version "1.0.3"
 
+escape-latex@1.0.3:
+  version "1.0.3"
+  resolved "https://registry.npmjs.org/escape-latex/-/escape-latex-1.0.3.tgz"
+  integrity sha512-GfKaG/7FOKdIdciylIzgaShBTPjdGQ5LJ2EcKLKXPLpcMO1MvCEVotkhydEShwCINRacZr2r3fk5A1PwZ4e5sA==
+
 escape-string-regexp@^1.0.2, escape-string-regexp@^1.0.5:
   version "1.0.5"
 
@@ -2890,6 +2918,11 @@ form-data@~2.3.2:
 format@^0.2.0:
   version "0.2.2"
 
+fraction.js@4.0.8:
+  version "4.0.8"
+  resolved "https://registry.npmjs.org/fraction.js/-/fraction.js-4.0.8.tgz"
+  integrity sha512-8Jx2AkFIFQtFaF8wP7yUIW+lnCgzPbxsholryMZ+oPK6kKjY/nUrvMKtq1+A8aSAeFau7+G/zfO8aGk2Aw1wCA==
+
 fragment-cache@^0.2.1:
   version "0.2.1"
   dependencies:
@@ -2930,6 +2963,11 @@ fs.realpath@^1.0.0:
 
 function-bind@^1.1.1, function-bind@^1.1.2:
   version "1.1.2"
+
+gaussian@^1.0.0:
+  version "1.3.0"
+  resolved "https://registry.npmjs.org/gaussian/-/gaussian-1.3.0.tgz"
+  integrity sha512-rYQ0ESfB+z0t7G95nHH80Zh7Pgg9A0FUYoZqV0yPec5WJZWKIHV2MPYpiJNy8oZAeVqyKwC10WXKSCnUQ5iDVg==
 
 generic-names@^2.0.1:
   version "2.0.1"
@@ -3598,6 +3636,11 @@ jake@^10.6.1:
     filelist "^1.0.1"
     minimatch "^3.0.4"
 
+javascript-natural-sort@0.7.1:
+  version "0.7.1"
+  resolved "https://registry.npmjs.org/javascript-natural-sort/-/javascript-natural-sort-0.7.1.tgz"
+  integrity sha512-nO6jcEfZWQXDhOiBtG2KvKyEptz7RVbpGP4vTD2hLBdmNQSsCiicO2Ioinv6UI4y9ukqnBpy+XZ9H6uLNgJTlw==
+
 joi@^17.3.0:
   version "17.4.0"
   dependencies:
@@ -3885,6 +3928,20 @@ matcher@^3.0.0:
 
 math-intrinsics@^1.1.0:
   version "1.1.0"
+
+mathjs@^4.0.0:
+  version "4.4.2"
+  resolved "https://registry.npmjs.org/mathjs/-/mathjs-4.4.2.tgz"
+  integrity sha512-T5zGIbDT/JGmzIu2Bocq4U8gbcmQVCyZaJbBCHKmJkLMQoWuh1SOuFH98doj1JEQwjpKkq3rqdUCuy3vLlBZOA==
+  dependencies:
+    complex.js "2.0.10"
+    decimal.js "9.0.1"
+    escape-latex "1.0.3"
+    fraction.js "4.0.8"
+    javascript-natural-sort "0.7.1"
+    seed-random "2.2.0"
+    tiny-emitter "2.0.2"
+    typed-function "1.0.3"
 
 md5.js@^1.3.4:
   version "1.3.5"
@@ -5039,6 +5096,11 @@ saxes@^6.0.0:
   dependencies:
     xmlchars "^2.2.0"
 
+seed-random@2.2.0:
+  version "2.2.0"
+  resolved "https://registry.npmjs.org/seed-random/-/seed-random-2.2.0.tgz"
+  integrity sha512-34EQV6AAHQGhoc0tn/96a9Fsi6v2xdqe/dMUwljGRaFOzR3EgRmECvD0O8vi8X+/uQ50LGHfkNu/Eue5TPKZkQ==
+
 semver-compare@^1.0.0:
   version "1.0.0"
 
@@ -5284,6 +5346,11 @@ stream-http@^3.1.0:
     readable-stream "^3.6.0"
     xtend "^4.0.2"
 
+streamsearch@^0.1.2:
+  version "0.1.2"
+  resolved "https://registry.npmjs.org/streamsearch/-/streamsearch-0.1.2.tgz"
+  integrity sha512-jos8u++JKm0ARcSUTAZXOVC0mSox7Bhn6sBgty73P1f3JGf7yG2clTbBNHUdde/kdvP2FESam+vM6l8jBrNxHA==
+
 string_decoder@^1.1.1, string_decoder@^1.3.0:
   version "1.3.0"
   dependencies:
@@ -5423,6 +5490,11 @@ timers-browserify@^2.0.11:
 timsort@^0.3.0:
   version "0.3.0"
 
+tiny-emitter@2.0.2:
+  version "2.0.2"
+  resolved "https://registry.npmjs.org/tiny-emitter/-/tiny-emitter-2.0.2.tgz"
+  integrity sha512-2NM0auVBGft5tee/OxP4PI3d8WItkDM+fPnaRAVo6xTDI2knbz9eC5ArWGqtGlYqiH3RU5yMpdyTTO7MguC4ow==
+
 tmp-promise@^3.0.2:
   version "3.0.2"
   dependencies:
@@ -5522,6 +5594,11 @@ type-fest@^0.13.1:
 
 type-fest@^0.20.2:
   version "0.20.2"
+
+typed-function@1.0.3:
+  version "1.0.3"
+  resolved "https://registry.npmjs.org/typed-function/-/typed-function-1.0.3.tgz"
+  integrity sha512-sVC/1pm70oELDFMdYtFXMFqyawenLoaDiAXA3QvOAwKF/WvFNTSJN23cY2lFNL8iP0kh3T0PPKewrboO8XUVGQ==
 
 typedarray-to-buffer@^3.1.5:
   version "3.1.5"

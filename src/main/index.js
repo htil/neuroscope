@@ -14,6 +14,7 @@ const menu = require("./menu");
 const port = 3005; // Updated to match the new port
 const selfHost = `http://localhost:${port}`;
 const GANGLION_DEVICE_NAME = "Ganglion-";
+const ROBOT_WS_PORT = 8777;
 const maxSpeed = 40;
 const minSpeed = 15;
 let bleCallback = null;
@@ -42,6 +43,27 @@ function clearBackendRestartTimer() {
     clearTimeout(backendRestartTimer);
     backendRestartTimer = null;
   }
+}
+
+function isRobotBackendPortResponsive(timeoutMs = 300) {
+  const net = require('net');
+  return new Promise(res => {
+    const sock = net.createConnection({ port: ROBOT_WS_PORT, host: '127.0.0.1' });
+    const timer = setTimeout(() => {
+      res(false);
+      try { sock.destroy(); } catch { }
+    }, timeoutMs);
+
+    sock.once('connect', () => {
+      clearTimeout(timer);
+      sock.end();
+      res(true);
+    });
+    sock.once('error', () => {
+      clearTimeout(timer);
+      res(false);
+    });
+  });
 }
 
 async function restoreBackendConnection() {
@@ -147,6 +169,12 @@ async function startPythonServer() {
   if (pythonProcess) {
     return;
   }
+
+  if (await isRobotBackendPortResponsive()) {
+    console.log(`[PYTHON] Reusing existing ${robotDisplayName} backend on port ${ROBOT_WS_PORT}`);
+    return;
+  }
+
   // Clear any lingering force-kill timer from a prior stop
   if (pythonForceKillTimer) {
     clearTimeout(pythonForceKillTimer);
@@ -193,15 +221,9 @@ async function startPythonServer() {
   });
 
   // Lightweight TCP poll instead of waitOn to avoid WebSocket handshake noise
-  const net = require('net');
   const maxAttempts = 25;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const portReady = await new Promise(res => {
-      const sock = net.createConnection({ port: 8777, host: '127.0.0.1' });
-      sock.once('connect', () => { sock.end(); res(true); });
-      sock.once('error', () => { res(false); });
-      setTimeout(() => { res(false); try { sock.destroy(); } catch { } }, 300);
-    });
+    const portReady = await isRobotBackendPortResponsive();
     if (portReady) {
       console.log('[PYTHON] WebSocket TCP port responsive');
       break;
@@ -332,7 +354,7 @@ function createWebSocketConnection() {
   return new Promise((resolve, reject) => {
     let wsTimeout;
     try {
-      ws = new WebSocket('ws://127.0.0.1:8777');
+      ws = new WebSocket(`ws://127.0.0.1:${ROBOT_WS_PORT}`);
 
       ws.on('open', function open() {
         console.log('WebSocket connection opened');
@@ -447,7 +469,7 @@ async function createWindow() {
   win = new BrowserWindow({
     width: 1200,
     height: 1000,
-    title: `NeuroBlock EEG for ${robotDisplayName}`,
+    title: `NeuroBlock EMG for ${robotDisplayName}`,
     icon: path.join(__dirname, "icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js")
@@ -464,7 +486,7 @@ async function createWindow() {
   if (isDevelopment) {
     win.loadURL(selfHost);
   } else {
-    win.loadFile(path.join(__dirname, "../../build/renderer/index.html"));
+    win.loadFile(path.join(__dirname, "../../build/renderer-mechdog-emg/index.html"));
   }
 
   // Only do these things when in development

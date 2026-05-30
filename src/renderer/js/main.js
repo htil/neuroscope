@@ -6,14 +6,13 @@ import {BandPowerPlot} from "./band-power-plot.js"
 import {BandPowerLineGraph} from "./bp-line-graph.js"
 */
 
-import { MuseGraph } from "./muse-graph.js";
 import { BLE } from "./ble.js";
 import { Events } from "./events.js";
 import { Signal } from "./signal.js";
 import { FeatureExtractor } from "./feature-extractor.js";
 import { ChannelVis } from "./channel_vis.js";
 import { BlocklyMain } from "./blockly-main.js";
-import { BandPowerVis } from "./band-power-vis.js";
+import { Console } from "./console.js";
 import { simpleTextView } from "./simple-text-view.js";
 
 let ws;
@@ -78,16 +77,27 @@ function updateMechdogSonarReadout(sonarDistanceMm) {
 export const NeuroScope = class {
   constructor() {
     this.blocklyMain = new BlocklyMain();
-    this.signal_handler = new Signal(512);
-    this.bpBis = new BandPowerVis();
+    this.signal_handler = new Signal(512, "ganglion");
+    this.console = new Console();
     this.events = new Events(this.blocklyMain);
-    this.ble = new BLE(this.signal_handler.add_data.bind(this.signal_handler));
+    this.ble = new BLE(this.signal_handler.add_data_ganglion.bind(this.signal_handler));
     this.feature_extractor = new FeatureExtractor(256);
     this.blocklyMain.start();
 
     // Ensure a defined, numeric global for wrapper functions
     window.band_powers = { delta: 0, theta: 0, alpha: 0, beta: 0, gamma: 0 };
     window.mechdogTelemetry = { battery: 0, sonarDistanceMm: 0 };
+    window.neuroConsole = this.console;
+
+    setTimeout(() => {
+      try {
+        simpleTextView.initialize(this.blocklyMain);
+        this.console.info("NeuroScope with text view initialized successfully");
+      } catch (error) {
+        console.error("Failed to initialize text view:", error);
+        this.console.error("Text view initialization failed: " + error.message);
+      }
+    }, 500);
 
     window.electronAPI.onVexStatus((status) => {
       window.mechdogTelemetry = {
@@ -97,6 +107,24 @@ export const NeuroScope = class {
           : window.mechdogTelemetry.sonarDistanceMm,
       };
       updateMechdogSonarReadout(window.mechdogTelemetry.sonarDistanceMm);
+      try {
+        const dot = document.getElementById("vex-status-dot");
+        if (!dot) return;
+        const { wsConnected, robotConnected } = status || {};
+        dot.className = "ui empty circular label";
+        if (!wsConnected) {
+          dot.classList.add("grey");
+          dot.title = "MechDog status: app not connected to local server";
+        } else if (!robotConnected) {
+          dot.classList.add("yellow");
+          dot.title = "MechDog status: server connected, robot not connected";
+        } else {
+          dot.classList.add("green");
+          dot.title = "MechDog status: robot connected";
+        }
+      } catch (error) {
+        console.warn("Failed to update MechDog status dot:", error);
+      }
     });
     window.electronAPI.requestVexStatus();
     updateMechdogSonarReadout(window.mechdogTelemetry.sonarDistanceMm);
@@ -110,19 +138,14 @@ export const NeuroScope = class {
     });
 
     setInterval(() => {
-      // Plot EEG channels
       this.signal_handler.plot_data(0);
       this.signal_handler.plot_data(1);
       this.signal_handler.plot_data(2);
       this.signal_handler.plot_data(3);
 
-      // Compute and render band power
       const data = this.signal_handler.get_data();
       const band_powers = this.feature_extractor.getFormattedBandPowers(data);
-
-      // Update chart and global values used by Blockly getters
       window.band_powers = sanitize(band_powers);
-      this.bpBis.update(window.band_powers);
     }, 400);
   }
 };

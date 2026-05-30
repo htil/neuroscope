@@ -394,11 +394,14 @@ async def handle_command(websocket, path=None):
 async def main():
     port = 8777
     logger.info("Starting MechDog WebSocket server on ws://127.0.0.1:%s", port)
-    await try_connect_robot_once()
+    initial_connect_task = None
     try:
         async with websockets.serve(handle_command, "127.0.0.1", port, ping_interval=None):
+            initial_connect_task = asyncio.create_task(try_connect_robot_once())
             await asyncio.Future()
     finally:
+        if initial_connect_task:
+            initial_connect_task.cancel()
         await controller.disconnect()
 
 
