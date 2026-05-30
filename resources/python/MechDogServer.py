@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 class MechDogController:
     def __init__(self):
         self.device_name_prefix = os.getenv("MECHDOG_NAME_PREFIX", "mechdog_").lower()
+        self.device_name_match = os.getenv("MECHDOG_NAME_MATCH", "").strip().lower()
         self.device_address = os.getenv("MECHDOG_ADDRESS", "").strip()
         self.write_uuid = os.getenv("MECHDOG_WRITE_UUID", "0000ffe1-0000-1000-8000-00805f9b34fb")
         self.notify_uuid = os.getenv("MECHDOG_NOTIFY_UUID", "0000ffe2-0000-1000-8000-00805f9b34fb")
@@ -55,14 +56,27 @@ class MechDogController:
             logger.info("Using configured MechDog address: %s", self.device_address)
             return self.device_address
 
-        logger.info("Scanning for MechDog with prefix '%s'...", self.device_name_prefix)
+        if self.device_name_match:
+            logger.info("Scanning for MechDog name containing '%s'...", self.device_name_match)
+        else:
+            logger.info("Scanning for MechDog with prefix '%s'...", self.device_name_prefix)
+
         devices = await BleakScanner.discover(timeout=8.0)
         for device in devices:
-            if device.name and device.name.lower().startswith(self.device_name_prefix):
+            device_name = (device.name or "").lower()
+            if self.device_name_match:
+                device_matches = self.device_name_match in device_name
+            else:
+                device_matches = device_name.startswith(self.device_name_prefix)
+
+            if device_matches:
                 self.device_name = device.name
                 self.device_address = device.address
                 logger.info("Found MechDog: %s (%s)", device.name, device.address)
                 return device
+
+        if self.device_name_match:
+            raise RuntimeError(f"MechDog not found with name containing '{self.device_name_match}'")
         raise RuntimeError(f"MechDog not found for prefix '{self.device_name_prefix}'")
 
     def _handle_disconnect(self, _client):

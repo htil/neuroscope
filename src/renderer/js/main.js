@@ -74,6 +74,27 @@ function updateMechdogSonarReadout(sonarDistanceMm) {
   }
 }
 
+async function initializeMechdogNameMatchInput() {
+  const input = document.getElementById("mechdog-name-match");
+  if (!input || !window.electronAPI?.getMechdogNameMatch) {
+    return;
+  }
+
+  try {
+    input.value = await window.electronAPI.getMechdogNameMatch();
+  } catch (error) {
+    console.warn("Failed to load MechDog selector:", error);
+  }
+
+  input.addEventListener("change", async () => {
+    try {
+      await window.electronAPI.setMechdogNameMatch(input.value.trim());
+    } catch (error) {
+      console.warn("Failed to save MechDog selector:", error);
+    }
+  });
+}
+
 export const NeuroScope = class {
   constructor() {
     this.blocklyMain = new BlocklyMain();
@@ -128,6 +149,7 @@ export const NeuroScope = class {
     });
     window.electronAPI.requestVexStatus();
     updateMechdogSonarReadout(window.mechdogTelemetry.sonarDistanceMm);
+    initializeMechdogNameMatchInput();
 
     const sanitize = (bp) => ({
       delta: Number.isFinite(Number(bp?.delta)) ? Number(bp.delta) : 0,

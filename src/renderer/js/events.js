@@ -123,7 +123,8 @@ export const Events = class {
     }
 
     try {
-      const result = await window.electronAPI.vexReconnect();
+      const mechdogNameMatch = document.getElementById("mechdog-name-match")?.value?.trim() || "";
+      const result = await window.electronAPI.vexReconnect(mechdogNameMatch);
 
       if (result.success) {
         if (window.neuroConsole) {

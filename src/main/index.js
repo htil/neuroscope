@@ -30,8 +30,59 @@ let pythonForceKillTimer = null; // timeout handle for forced kill
 let reconnectInProgress = false; // guard against overlapping reconnects
 let pythonStopping = false;
 let backendRestartTimer = null;
+let activeMechDogNameMatch = null;
 const robotBackend = String(process.env.ROBOT_BACKEND || 'mechdog').toLowerCase();
 const robotDisplayName = robotBackend === 'mechdog' ? 'MechDog' : 'VEX AIM';
+const ROBOT_CONFIG_FILE = 'robot-config.json';
+
+function getRobotConfigPath() {
+  return path.join(app.getPath('userData'), ROBOT_CONFIG_FILE);
+}
+
+function readRobotConfig() {
+  try {
+    const configPath = getRobotConfigPath();
+    if (!fs.existsSync(configPath)) {
+      return {};
+    }
+    return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  } catch (error) {
+    console.warn(`[${robotDisplayName}] Failed to read robot config:`, error);
+    return {};
+  }
+}
+
+function writeRobotConfig(config) {
+  const configPath = getRobotConfigPath();
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+}
+
+function getMechDogNameMatch() {
+  return String(readRobotConfig().mechdogNameMatch || '').trim();
+}
+
+function setMechDogNameMatch(value) {
+  const mechdogNameMatch = String(value || '').trim();
+  writeRobotConfig({
+    ...readRobotConfig(),
+    mechdogNameMatch
+  });
+  return mechdogNameMatch;
+}
+
+function getPythonEnv() {
+  const env = { ...process.env };
+  if (robotBackend === 'mechdog') {
+    const mechdogNameMatch = getMechDogNameMatch();
+    if (mechdogNameMatch) {
+      env.MECHDOG_NAME_MATCH = mechdogNameMatch;
+    } else {
+      delete env.MECHDOG_NAME_MATCH;
+    }
+  }
+  return env;
+}
 
 function publishRobotStatus(status) {
   if (!win || win.isDestroyed()) return;
@@ -183,26 +234,31 @@ async function startPythonServer() {
   clearBackendRestartTimer();
   pythonStopping = false;
   const pythonExe = getPythonExecutable();
+  const pythonEnv = getPythonEnv();
   console.log('[PYTHON] Resolved python executable:', pythonExe);
+  if (robotBackend === 'mechdog' && pythonEnv.MECHDOG_NAME_MATCH) {
+    console.log('[PYTHON] MECHDOG_NAME_MATCH:', pythonEnv.MECHDOG_NAME_MATCH);
+  }
+  activeMechDogNameMatch = robotBackend === 'mechdog' ? (pythonEnv.MECHDOG_NAME_MATCH || '') : null;
 
   try {
     if (typeof pythonExe === 'object') {
       if (pythonExe.standalone) {
         // Standalone exe (e.g., PyInstaller bundle) - no script argument needed
         console.log('[PYTHON] Spawning standalone exe:', pythonExe.exe);
-        pythonProcess = spawn(pythonExe.exe, [], { stdio: 'pipe' });
+        pythonProcess = spawn(pythonExe.exe, [], { stdio: 'pipe', env: pythonEnv });
       } else {
         // Python interpreter + script
         console.log('[PYTHON] Spawning bundled python + script:', pythonExe.exe, pythonExe.script);
-        pythonProcess = spawn(pythonExe.exe, [pythonExe.script], { stdio: 'pipe' });
+        pythonProcess = spawn(pythonExe.exe, [pythonExe.script], { stdio: 'pipe', env: pythonEnv });
       }
     } else if (typeof pythonExe === 'string' && pythonExe.endsWith('.exe') && isProduction) {
       console.log('[PYTHON] Spawning bundled exe:', pythonExe);
-      pythonProcess = spawn(pythonExe, [], { stdio: 'pipe' });
+      pythonProcess = spawn(pythonExe, [], { stdio: 'pipe', env: pythonEnv });
     } else {
       const script = getPythonScript();
       console.log('[PYTHON] Spawning:', pythonExe, script);
-      pythonProcess = spawn(pythonExe, [script], { stdio: 'pipe' });
+      pythonProcess = spawn(pythonExe, [script], { stdio: 'pipe', env: pythonEnv });
     }
   } catch (spawnErr) {
     console.error('[PYTHON] Spawn error:', spawnErr);
@@ -215,6 +271,7 @@ async function startPythonServer() {
   pythonProcess?.on('close', (code) => {
     console.log(`Python process exited with code ${code}`);
     pythonProcess = null;
+    activeMechDogNameMatch = null;
     if (!pythonStopping) {
       scheduleBackendRestart(`python exit code ${code}`);
     }
@@ -260,6 +317,7 @@ async function stopPythonServer() {
 
     const finish = (code) => {
       if (pythonProcess === proc) pythonProcess = null;
+      activeMechDogNameMatch = null;
       console.log(`Python process stopped with code ${code}`);
       resolve();
     };
@@ -283,7 +341,7 @@ async function stopPythonServer() {
   });
 }
 
-async function reconnectVEX() {
+async function reconnectVEX(nextMechDogNameMatch) {
   console.log(`Reconnecting to ${robotDisplayName}...`);
   if (reconnectInProgress) {
     console.log('Reconnect skipped: already in progress');
@@ -291,6 +349,19 @@ async function reconnectVEX() {
   }
   reconnectInProgress = true;
   try {
+    if (robotBackend === 'mechdog' && nextMechDogNameMatch !== undefined) {
+      const previousMechDogNameMatch = getMechDogNameMatch();
+      const mechdogNameMatch = setMechDogNameMatch(nextMechDogNameMatch);
+      if (mechdogNameMatch !== previousMechDogNameMatch || mechdogNameMatch !== activeMechDogNameMatch) {
+        console.log(`[${robotDisplayName}] MechDog name match changed; restarting backend`);
+        if (ws) { try { ws.close(); } catch { } ws = null; }
+        await stopPythonServer();
+        await new Promise(r => setTimeout(r, 1000));
+        await startPythonServer();
+        await createWebSocketConnection();
+      }
+    }
+
     // Instead of killing the Python process, just tell it to reconnect to the robot
     if (ws && ws.readyState === WebSocket.OPEN) {
       console.log('Sending reconnect_robot command to Python server...');
@@ -685,7 +756,7 @@ async function createWindow() {
   });
 
   // Robot reconnect handler
-  ipcMain.handle("vex-reconnect", async (event) => {
+  ipcMain.handle("vex-reconnect", async (event, mechdogNameMatch) => {
     // Guard: don't proceed if window is gone
     if (!win || win.isDestroyed()) {
       console.warn(`[${robotDisplayName}] Reconnect aborted: window destroyed`);
@@ -693,12 +764,17 @@ async function createWindow() {
     }
 
     console.log(`[${robotDisplayName}] Reconnect requested`);
-    const result = await reconnectVEX();
+    const result = await reconnectVEX(mechdogNameMatch);
     return result;
   });
 
   // Manual status request from renderer
   ipcMain.on('vex-status-request', () => pollRobotStatus());
+
+  ipcMain.handle("mechdog-name-match-get", async () => getMechDogNameMatch());
+  ipcMain.handle("mechdog-name-match-set", async (event, mechdogNameMatch) => {
+    return setMechDogNameMatch(mechdogNameMatch);
+  });
 
   let isUp = false;
 

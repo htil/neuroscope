@@ -34,7 +34,9 @@ process.once("loaded", () => {
     vexRight: (distance) => ipcRenderer.send("vex-right", distance),
     // Kicker command IPC bridge
     vexKicker: (type) => ipcRenderer.send("vex-kicker", type),
-    vexReconnect: () => ipcRenderer.invoke("vex-reconnect"),
+    vexReconnect: (mechdogNameMatch) => ipcRenderer.invoke("vex-reconnect", mechdogNameMatch),
+    getMechdogNameMatch: () => ipcRenderer.invoke("mechdog-name-match-get"),
+    setMechdogNameMatch: (mechdogNameMatch) => ipcRenderer.invoke("mechdog-name-match-set", mechdogNameMatch),
     // VEX status IPC
     onVexStatus: (callback) => {
       if (typeof callback === 'function') {
