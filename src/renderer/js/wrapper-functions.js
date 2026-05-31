@@ -112,6 +112,18 @@ export const WrapperFunctions = class {
     window.electronAPI.vexRight(distance);
   }
 
+  mechdog_forward_continuous() {
+    window.electronAPI.sendCommand({ action: "run", direction: "forward" });
+  }
+
+  mechdog_backward_continuous() {
+    window.electronAPI.sendCommand({ action: "run", direction: "backward" });
+  }
+
+  mechdog_drive(speed, steering) {
+    window.electronAPI.sendCommand({ action: "drive", speed, steering });
+  }
+
   mechdog_back(distance) {
     window.electronAPI.sendCommand({ action: "move", distance, heading: 180 });
   }

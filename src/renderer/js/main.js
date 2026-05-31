@@ -136,7 +136,9 @@ export const NeuroScope = class {
 
     window.electronAPI.onVexStatus((status) => {
       window.mechdogTelemetry = {
-        battery: Number.isFinite(Number(status?.battery)) ? Number(status.battery) : window.mechdogTelemetry.battery,
+        battery: Number.isFinite(Number(status?.batteryRaw ?? status?.battery))
+          ? Number(status.batteryRaw ?? status.battery)
+          : window.mechdogTelemetry.battery,
         sonarDistanceMm: Number.isFinite(Number(status?.sonarDistanceMm))
           ? Number(status.sonarDistanceMm)
           : window.mechdogTelemetry.sonarDistanceMm,

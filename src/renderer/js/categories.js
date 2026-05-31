@@ -48,13 +48,12 @@ export const Categories = {
     modules: [
       "mechdog_battery",
       "mechdog_sonar",
-      "vex_forward",
-      "mechdog_back",
-      "vex_left",
-      "vex_right",
+      "mechdog_forward_continuous",
+      "mechdog_backward_continuous",
       "vex_turn_left",
       "vex_turn_right",
       "mechdog_stop",
+      "mechdog_drive",
       "mechdog_handshake",
       "mechdog_boxing"
     ]

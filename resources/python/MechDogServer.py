@@ -31,6 +31,8 @@ class MechDogController:
         self.command_turn_right = os.getenv("MECHDOG_CMD_TURN_RIGHT", "CMD|3|1|$")
         self.command_turn_left = os.getenv("MECHDOG_CMD_TURN_LEFT", "CMD|3|5|$")
         self.command_backward = os.getenv("MECHDOG_CMD_BACKWARD", "CMD|3|7|$")
+        self.drive_speed_limit = float(os.getenv("MECHDOG_DRIVE_SPEED_LIMIT", "120"))
+        self.drive_steering_limit = float(os.getenv("MECHDOG_DRIVE_STEERING_LIMIT", "40"))
         self.command_handshake = os.getenv("MECHDOG_CMD_HANDSHAKE", "CMD|2|1|7|$")
         self.command_boxing = os.getenv("MECHDOG_CMD_BOXING", "CMD|2|1|10|$")
         self.command_battery = os.getenv("MECHDOG_CMD_BATTERY", "CMD|6|$")
@@ -268,8 +270,30 @@ class MechDogController:
             "duration_s": duration_s,
         }
 
+    async def run_direction(self, direction):
+        command_map = {
+            "forward": self.command_forward,
+            "backward": self.command_backward,
+            "left": self.command_turn_left,
+            "right": self.command_turn_right,
+        }
+        direction_key = str(direction or "").strip().lower()
+        command = command_map.get(direction_key)
+        if not command:
+            raise ValueError(f"Unknown MechDog run direction '{direction}'")
+
+        await self.write_command(command)
+        return {
+            "status": "success",
+            "action": "run",
+            "direction": direction_key,
+            "requires_stop": True,
+        }
+
     async def turn_left(self, degrees):
         degrees = float(degrees)
+        # Degree-based turning is not confirmed by the original Hiwonder code.
+        # This starts the left arc turn and leaves timing to wait seconds + stop.
         await self.write_command(self.command_turn_left)
         return {
             "status": "success",
@@ -280,6 +304,8 @@ class MechDogController:
 
     async def turn_right(self, degrees):
         degrees = float(degrees)
+        # Degree-based turning is not confirmed by the original Hiwonder code.
+        # This starts the right arc turn and leaves timing to wait seconds + stop.
         await self.write_command(self.command_turn_right)
         return {
             "status": "success",
@@ -288,12 +314,45 @@ class MechDogController:
             "requires_stop": True,
         }
 
+    async def drive(self, speed, steering):
+        speed = max(-self.drive_speed_limit, min(self.drive_speed_limit, float(speed)))
+        steering = max(-self.drive_steering_limit, min(self.drive_steering_limit, float(steering)))
+
+        if speed == 0 and steering == 0:
+            await self.stop()
+            direction = "stop"
+        elif steering < 0:
+            await self.write_command(self.command_turn_left)
+            direction = "left"
+        elif steering > 0:
+            await self.write_command(self.command_turn_right)
+            direction = "right"
+        elif speed < 0:
+            await self.write_command(self.command_backward)
+            direction = "backward"
+        else:
+            await self.write_command(self.command_forward)
+            direction = "forward"
+
+        return {
+            "status": "success",
+            "action": "drive",
+            "speed": speed,
+            "steering": steering,
+            "direction": direction,
+            "requires_stop": direction != "stop",
+            "message": "Mapped to available MechDog run command; precise speed/steering protocol is not confirmed.",
+        }
+
     async def raw_command(self, command):
         await self.write_command(command)
         return {"status": "success", "action": "raw_command", "command": command}
 
     async def stop(self):
-        await self.write_command(self.command_stop)
+        for attempt in range(2):
+            await self.write_command(self.command_stop)
+            if attempt == 0:
+                await asyncio.sleep(0.05)
         return {"status": "success", "action": "stop"}
 
     async def run_action(self, action_name):
@@ -312,7 +371,13 @@ class MechDogController:
         parts = payload.split("|")
         battery = int(parts[2])
         self.last_battery = battery
-        return {"status": "success", "action": "battery", "battery": battery}
+        return {
+            "status": "success",
+            "action": "battery",
+            "battery": battery,
+            "battery_raw": battery,
+            "battery_level": battery,
+        }
 
     async def get_sonar_distance(self):
         payload = await self.query_command(self.command_sonar, lambda value: value.startswith("CMD|4|"))
@@ -330,6 +395,8 @@ class MechDogController:
             "device_address": self.device_address,
             "last_error": self.last_error,
             "battery": self.last_battery,
+            "battery_raw": self.last_battery,
+            "battery_level": self.last_battery,
             "sonar_distance_mm": self.last_sonar_distance,
             "timestamp": datetime.now().isoformat(),
         }
@@ -367,6 +434,10 @@ async def handle_command(websocket, path=None):
                     response = await controller.led_on(command.get("color", "BLUE"))
                 elif action == "led_off":
                     response = await controller.led_off()
+                elif action == "run":
+                    response = await controller.run_direction(command.get("direction", ""))
+                elif action == "drive":
+                    response = await controller.drive(command.get("speed", 0), command.get("steering", 0))
                 elif action == "move":
                     response = await controller.move(command.get("distance", 4), command.get("heading", 0))
                 elif action == "turn_left":

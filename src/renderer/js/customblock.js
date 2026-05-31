@@ -157,10 +157,10 @@ export const createCustomBlocks = function () {
 
   var getMechdogBattery = {
     type: "mechdog_battery",
-    message0: "dog battery",
+    message0: "dog battery raw",
     output: "Number",
     colour: 70,
-    tooltip: "Latest MechDog battery percentage",
+    tooltip: "Latest raw MechDog battery value",
     helpUrl: ""
   };
 
@@ -527,11 +527,12 @@ javascriptGenerator.forBlock["led_control"] = function (block) {
   return code;
 };
 
-// VEX Turn Left Block (simplified - no degrees input)
+// MechDog turns are continuous arc commands; degree-based turning is not confirmed
+// by the original Hiwonder code, so students should use wait seconds + stop dog.
 var vexTurnLeft = {
   type: "vex_turn_left",
   message0: "turn left",
-  args0: [], // Remove the degrees input
+  args0: [],
   previousStatement: null,
   nextStatement: null,
   colour: 70
@@ -544,15 +545,15 @@ Blockly.Blocks["vex_turn_left"] = {
 };
 
 javascriptGenerator.forBlock["vex_turn_left"] = function (block, generator) {
-  // Use a default value of 90 degrees since there's no input
-  return `vex_turn_left(90);\n`;
+  return `vex_turn_left();\n`;
 };
 
-// VEX Turn Right Block (simplified - no degrees input)
+// MechDog turns are continuous arc commands; degree-based turning is not confirmed
+// by the original Hiwonder code, so students should use wait seconds + stop dog.
 var vexTurnRight = {
   type: "vex_turn_right",
   message0: "turn right",
-  args0: [], // Remove the degrees input
+  args0: [],
   previousStatement: null,
   nextStatement: null,
   colour: 70
@@ -565,8 +566,7 @@ Blockly.Blocks["vex_turn_right"] = {
 };
 
 javascriptGenerator.forBlock["vex_turn_right"] = function (block, generator) {
-  // Use a default value of 90 degrees since there's no input
-  return `vex_turn_right(90);\n`;
+  return `vex_turn_right();\n`;
 };
 
 // VEX Forward Block
@@ -702,6 +702,72 @@ Blockly.Blocks["mechdog_back"] = {
 javascriptGenerator.forBlock["mechdog_back"] = function (block, generator) {
   var distance = generator.valueToCode(block, "distance", Order.ATOMIC) || "4";
   return `mechdog_back(${distance});\n`;
+};
+
+// MechDog Continuous Forward Block
+var mechdogForwardContinuous = {
+  type: "mechdog_forward_continuous",
+  message0: "move forward",
+  args0: [],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 70
+};
+
+Blockly.Blocks["mechdog_forward_continuous"] = {
+  init: function () {
+    this.jsonInit(mechdogForwardContinuous);
+  }
+};
+
+javascriptGenerator.forBlock["mechdog_forward_continuous"] = function () {
+  return `mechdog_forward_continuous();\n`;
+};
+
+// MechDog Continuous Backward Block
+var mechdogBackwardContinuous = {
+  type: "mechdog_backward_continuous",
+  message0: "move backward",
+  args0: [],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 70
+};
+
+Blockly.Blocks["mechdog_backward_continuous"] = {
+  init: function () {
+    this.jsonInit(mechdogBackwardContinuous);
+  }
+};
+
+javascriptGenerator.forBlock["mechdog_backward_continuous"] = function () {
+  return `mechdog_backward_continuous();\n`;
+};
+
+// Advanced MechDog drive block. This mirrors Hiwonder's doghw.move(speed, turn_value)
+// conceptually; the current BLE backend maps values to the supported run commands.
+var mechdogDrive = {
+  type: "mechdog_drive",
+  message0: "drive speed %1 steering %2",
+  args0: [
+    { type: "field_number", name: "SPEED", value: 60, min: -120, max: 120 },
+    { type: "field_number", name: "STEERING", value: 0, min: -40, max: 40 }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 70
+};
+
+Blockly.Blocks["mechdog_drive"] = {
+  init: function () {
+    this.jsonInit(mechdogDrive);
+  }
+};
+
+javascriptGenerator.forBlock["mechdog_drive"] = function (block) {
+  var speed = block.getFieldValue("SPEED");
+  var steering = block.getFieldValue("STEERING");
+  return `mechdog_drive(${speed}, ${steering});\n`;
 };
 
 // MechDog Stop Block
