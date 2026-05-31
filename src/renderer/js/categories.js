@@ -24,7 +24,7 @@ export const Categories = {
   cat_data: {
     name: "Data",
     colour: 330,
-    modules: ["delta", "theta", "alpha", "beta", "gamma", "print", "muscle_energy"]
+    modules: ["print", "muscle_energy"]
   },
 
   cat_drone: {

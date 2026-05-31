@@ -53,6 +53,16 @@ function sendCommand(command) {
 
 window.sendCommand = sendCommand;
 
+function updateMechdogBatteryReadout(battery) {
+  const batteryEl = document.getElementById("battery");
+  if (!batteryEl) return;
+
+  const batteryPercent = Number(battery);
+  if (!Number.isFinite(batteryPercent)) return;
+
+  batteryEl.textContent = `${Math.max(0, Math.min(100, Math.round(batteryPercent)))}%`;
+}
+
 function updateMechdogSonarReadout(sonarDistanceMm) {
   const sonarEl = document.getElementById("mechdog-sonar-readout");
   if (!sonarEl) return;
@@ -128,6 +138,7 @@ export const NeuroScope = class {
           ? Number(status.sonarDistanceMm)
           : window.mechdogTelemetry.sonarDistanceMm,
       };
+      updateMechdogBatteryReadout(window.mechdogTelemetry.battery);
       updateMechdogSonarReadout(window.mechdogTelemetry.sonarDistanceMm);
       try {
         const dot = document.getElementById("vex-status-dot");

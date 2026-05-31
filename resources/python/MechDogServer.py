@@ -51,6 +51,11 @@ class MechDogController:
         self._connect_lock = asyncio.Lock()
         self._motion_lock = asyncio.Lock()
 
+    @staticmethod
+    def _scale_battery_percent(raw_battery):
+        raw_value = max(0, min(255, int(raw_battery)))
+        return int(round((raw_value / 255) * 100))
+
     async def _find_device(self):
         if self.device_address:
             logger.info("Using configured MechDog address: %s", self.device_address)
@@ -103,7 +108,7 @@ class MechDogController:
         if len(parts) >= 3 and parts[0] == "CMD":
             if parts[1] == "6":
                 try:
-                    self.last_battery = int(parts[2])
+                    self.last_battery = self._scale_battery_percent(parts[2])
                 except ValueError:
                     pass
             elif parts[1] == "4":
@@ -270,24 +275,22 @@ class MechDogController:
 
     async def turn_left(self, degrees):
         degrees = float(degrees)
-        duration_s = min(2.5, max(0.2, (abs(degrees) / 90.0) * self.turn_seconds_per_90))
-        await self.pulse_command(self.command_turn_left, duration_s)
+        await self.write_command(self.command_turn_left)
         return {
             "status": "success",
             "action": "turn_left",
             "degrees": degrees,
-            "duration_s": duration_s,
+            "requires_stop": True,
         }
 
     async def turn_right(self, degrees):
         degrees = float(degrees)
-        duration_s = min(2.5, max(0.2, (abs(degrees) / 90.0) * self.turn_seconds_per_90))
-        await self.pulse_command(self.command_turn_right, duration_s)
+        await self.write_command(self.command_turn_right)
         return {
             "status": "success",
             "action": "turn_right",
             "degrees": degrees,
-            "duration_s": duration_s,
+            "requires_stop": True,
         }
 
     async def raw_command(self, command):
@@ -312,7 +315,7 @@ class MechDogController:
     async def get_battery(self):
         payload = await self.query_command(self.command_battery, lambda value: value.startswith("CMD|6|"))
         parts = payload.split("|")
-        battery = int(parts[2])
+        battery = self._scale_battery_percent(parts[2])
         self.last_battery = battery
         return {"status": "success", "action": "battery", "battery": battery}
 
