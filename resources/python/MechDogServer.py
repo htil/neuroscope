@@ -51,11 +51,6 @@ class MechDogController:
         self._connect_lock = asyncio.Lock()
         self._motion_lock = asyncio.Lock()
 
-    @staticmethod
-    def _scale_battery_percent(raw_battery):
-        raw_value = max(0, min(255, int(raw_battery)))
-        return int(round((raw_value / 255) * 100))
-
     async def _find_device(self):
         if self.device_address:
             logger.info("Using configured MechDog address: %s", self.device_address)
@@ -108,7 +103,7 @@ class MechDogController:
         if len(parts) >= 3 and parts[0] == "CMD":
             if parts[1] == "6":
                 try:
-                    self.last_battery = self._scale_battery_percent(parts[2])
+                    self.last_battery = int(parts[2])
                 except ValueError:
                     pass
             elif parts[1] == "4":
@@ -315,7 +310,7 @@ class MechDogController:
     async def get_battery(self):
         payload = await self.query_command(self.command_battery, lambda value: value.startswith("CMD|6|"))
         parts = payload.split("|")
-        battery = self._scale_battery_percent(parts[2])
+        battery = int(parts[2])
         self.last_battery = battery
         return {"status": "success", "action": "battery", "battery": battery}
 

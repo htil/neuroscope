@@ -57,10 +57,13 @@ function updateMechdogBatteryReadout(battery) {
   const batteryEl = document.getElementById("battery");
   if (!batteryEl) return;
 
-  const batteryPercent = Number(battery);
-  if (!Number.isFinite(batteryPercent)) return;
+  const rawBattery = Number(battery);
+  if (!Number.isFinite(rawBattery)) {
+    batteryEl.textContent = "Bat --";
+    return;
+  }
 
-  batteryEl.textContent = `${Math.max(0, Math.min(100, Math.round(batteryPercent)))}%`;
+  batteryEl.textContent = `Bat ${Math.round(rawBattery)}`;
 }
 
 function updateMechdogSonarReadout(sonarDistanceMm) {
@@ -118,7 +121,7 @@ export const NeuroScope = class {
 
     // Ensure a defined, numeric global for wrapper functions
     window.band_powers = { delta: 0, theta: 0, alpha: 0, beta: 0, gamma: 0 };
-    window.mechdogTelemetry = { battery: 0, sonarDistanceMm: 0 };
+    window.mechdogTelemetry = { battery: null, sonarDistanceMm: 0 };
     window.neuroConsole = this.console;
 
     setTimeout(() => {
