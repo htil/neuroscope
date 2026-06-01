@@ -33,8 +33,23 @@ class MechDogController:
         self.command_backward = os.getenv("MECHDOG_CMD_BACKWARD", "CMD|3|7|$")
         self.drive_speed_limit = float(os.getenv("MECHDOG_DRIVE_SPEED_LIMIT", "120"))
         self.drive_steering_limit = float(os.getenv("MECHDOG_DRIVE_STEERING_LIMIT", "40"))
-        self.command_handshake = os.getenv("MECHDOG_CMD_HANDSHAKE", "CMD|2|1|7|$")
-        self.command_boxing = os.getenv("MECHDOG_CMD_BOXING", "CMD|2|1|10|$")
+        self.action_commands = {
+            "left_foot_kick": os.getenv("MECHDOG_CMD_LEFT_FOOT_KICK", "CMD|2|1|1|$"),
+            "right_foot_kick": os.getenv("MECHDOG_CMD_RIGHT_FOOT_KICK", "CMD|2|1|2|$"),
+            "stand_four_legs": os.getenv("MECHDOG_CMD_STAND_FOUR_LEGS", "CMD|2|1|3|$"),
+            "sit_dowm": os.getenv("MECHDOG_CMD_SIT_DOWM", "CMD|2|1|4|$"),
+            "go_prone": os.getenv("MECHDOG_CMD_GO_PRONE", "CMD|2|1|5|$"),
+            "stand_two_legs": os.getenv("MECHDOG_CMD_STAND_TWO_LEGS", "CMD|2|1|6|$"),
+            "handshake": os.getenv("MECHDOG_CMD_HANDSHAKE", "CMD|2|1|7|$"),
+            "scrape_a_bow": os.getenv("MECHDOG_CMD_SCRAPE_A_BOW", "CMD|2|1|8|$"),
+            "nodding_motion": os.getenv("MECHDOG_CMD_NODDING_MOTION", "CMD|2|1|9|$"),
+            "boxing": os.getenv("MECHDOG_CMD_BOXING", "CMD|2|1|10|$"),
+            "stretch_oneself": os.getenv("MECHDOG_CMD_STRETCH_ONESELF", "CMD|2|1|11|$"),
+            "pee": os.getenv("MECHDOG_CMD_PEE", "CMD|2|1|12|$"),
+            "press_up": os.getenv("MECHDOG_CMD_PRESS_UP", "CMD|2|1|13|$"),
+            "rotation_pitch": os.getenv("MECHDOG_CMD_ROTATION_PITCH", "CMD|2|1|14|$"),
+            "rotation_roll": os.getenv("MECHDOG_CMD_ROTATION_ROLL", "CMD|2|1|15|$"),
+        }
         self.command_battery = os.getenv("MECHDOG_CMD_BATTERY", "CMD|6|$")
         self.command_sonar = os.getenv("MECHDOG_CMD_SONAR", "CMD|4|1|$")
 
@@ -367,15 +382,12 @@ class MechDogController:
         return {"status": "success", "action": "stop"}
 
     async def run_action(self, action_name):
-        action_map = {
-            "handshake": self.command_handshake,
-            "boxing": self.command_boxing,
-        }
-        command = action_map.get(str(action_name).strip().lower())
+        action_key = str(action_name).strip().lower()
+        command = self.action_commands.get(action_key)
         if not command:
             raise ValueError(f"Unknown MechDog action '{action_name}'")
         await self.write_command(command)
-        return {"status": "success", "action": "mechdog_action", "type": action_name}
+        return {"status": "success", "action": "mechdog_action", "type": action_key}
 
     async def get_battery(self):
         payload = await self.query_command(self.command_battery, lambda value: value.startswith("CMD|6|"))

@@ -126,6 +126,19 @@ export const BlocklyMain = class {
       mechdog_turn_right_steering: "turn right",
       mechdog_handshake: "handshake",
       mechdog_boxing: "boxing",
+      mechdog_left_foot_kick: "left foot kick",
+      mechdog_right_foot_kick: "right foot kick",
+      mechdog_stand_four_legs: "stand four legs",
+      mechdog_sit_dowm: "sit down",
+      mechdog_go_prone: "go prone",
+      mechdog_stand_two_legs: "stand two legs",
+      mechdog_scrape_a_bow: "scrape a bow",
+      mechdog_nodding_motion: "nodding motion",
+      mechdog_stretch_oneself: "stretch oneself",
+      mechdog_pee: "potty",
+      mechdog_press_up: "press up",
+      mechdog_rotation_pitch: "rotation pitch",
+      mechdog_rotation_roll: "rotation roll",
       controls_if: "if"
     };
 

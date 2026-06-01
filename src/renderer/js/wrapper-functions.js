@@ -158,6 +158,10 @@ export const WrapperFunctions = class {
     window.electronAPI.sendCommand({ action: "stop" });
   }
 
+  mechdog_action(type) {
+    window.electronAPI.sendCommand({ action: "mechdog_action", type });
+  }
+
   mechdog_handshake() {
     window.electronAPI.sendCommand({ action: "mechdog_action", type: "handshake" });
   }

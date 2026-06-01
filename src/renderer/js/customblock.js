@@ -935,8 +935,10 @@ javascriptGenerator.forBlock["mechdog_stop"] = function () {
 };
 
 // MechDog Handshake Block
+const MECHDOG_EMOTE_BLOCK_COLOUR = 25;
 const MECHDOG_HANDSHAKE_WAIT_SECONDS = 4;
 const MECHDOG_BOXING_WAIT_SECONDS = 8;
+const MECHDOG_DEFAULT_ACTION_WAIT_SECONDS = 4;
 
 var mechdogHandshake = {
   type: "mechdog_handshake",
@@ -944,7 +946,7 @@ var mechdogHandshake = {
   args0: [],
   previousStatement: null,
   nextStatement: null,
-  colour: 70
+  colour: MECHDOG_EMOTE_BLOCK_COLOUR
 };
 
 Blockly.Blocks["mechdog_handshake"] = {
@@ -964,7 +966,7 @@ var mechdogBoxing = {
   args0: [],
   previousStatement: null,
   nextStatement: null,
-  colour: 70
+  colour: MECHDOG_EMOTE_BLOCK_COLOUR
 };
 
 Blockly.Blocks["mechdog_boxing"] = {
@@ -976,6 +978,41 @@ Blockly.Blocks["mechdog_boxing"] = {
 javascriptGenerator.forBlock["mechdog_boxing"] = function () {
   return `mechdog_boxing();\nwait_seconds(${MECHDOG_BOXING_WAIT_SECONDS});\n`;
 };
+
+const MECHDOG_ADVANCED_ACTIONS = [
+  ["mechdog_left_foot_kick", "left foot kick", "left_foot_kick", MECHDOG_DEFAULT_ACTION_WAIT_SECONDS],
+  ["mechdog_right_foot_kick", "right foot kick", "right_foot_kick", MECHDOG_DEFAULT_ACTION_WAIT_SECONDS],
+  ["mechdog_stand_four_legs", "stand four legs", "stand_four_legs", MECHDOG_DEFAULT_ACTION_WAIT_SECONDS],
+  ["mechdog_sit_dowm", "sit down", "sit_dowm", MECHDOG_DEFAULT_ACTION_WAIT_SECONDS],
+  ["mechdog_go_prone", "go prone", "go_prone", MECHDOG_DEFAULT_ACTION_WAIT_SECONDS],
+  ["mechdog_stand_two_legs", "stand two legs", "stand_two_legs", MECHDOG_DEFAULT_ACTION_WAIT_SECONDS],
+  ["mechdog_scrape_a_bow", "scrape a bow", "scrape_a_bow", MECHDOG_DEFAULT_ACTION_WAIT_SECONDS],
+  ["mechdog_nodding_motion", "nodding motion", "nodding_motion", MECHDOG_DEFAULT_ACTION_WAIT_SECONDS],
+  ["mechdog_stretch_oneself", "stretch oneself", "stretch_oneself", MECHDOG_DEFAULT_ACTION_WAIT_SECONDS],
+  ["mechdog_pee", "potty", "pee", 6],
+  ["mechdog_press_up", "press up", "press_up", 6],
+  ["mechdog_rotation_pitch", "rotation pitch", "rotation_pitch", MECHDOG_DEFAULT_ACTION_WAIT_SECONDS],
+  ["mechdog_rotation_roll", "rotation roll", "rotation_roll", MECHDOG_DEFAULT_ACTION_WAIT_SECONDS]
+];
+
+MECHDOG_ADVANCED_ACTIONS.forEach(([blockType, label, actionName, waitSeconds]) => {
+  Blockly.Blocks[blockType] = {
+    init: function () {
+      this.jsonInit({
+        type: blockType,
+        message0: label,
+        args0: [],
+        previousStatement: null,
+        nextStatement: null,
+        colour: MECHDOG_EMOTE_BLOCK_COLOUR
+      });
+    }
+  };
+
+  javascriptGenerator.forBlock[blockType] = function () {
+    return `mechdog_action("${actionName}");\nwait_seconds(${waitSeconds});\n`;
+  };
+});
 
 // VEX Kicker Block
 var vexKicker = {

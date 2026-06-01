@@ -64,7 +64,20 @@ export const Categories = {
       "mechdog_sonar",
       "mechdog_drive_values",
       "mechdog_turn_left_steering",
-      "mechdog_turn_right_steering"
+      "mechdog_turn_right_steering",
+      "mechdog_left_foot_kick",
+      "mechdog_right_foot_kick",
+      "mechdog_stand_four_legs",
+      "mechdog_sit_dowm",
+      "mechdog_go_prone",
+      "mechdog_stand_two_legs",
+      "mechdog_scrape_a_bow",
+      "mechdog_nodding_motion",
+      "mechdog_stretch_oneself",
+      "mechdog_pee",
+      "mechdog_press_up",
+      "mechdog_rotation_pitch",
+      "mechdog_rotation_roll"
     ]
   },
 

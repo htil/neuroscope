@@ -39,6 +39,7 @@ export const InterpreterAPI = class {
       mechdog_turn_right_steering: this.wrapperFunctions.mechdog_turn_right_steering,
       mechdog_back: this.wrapperFunctions.mechdog_back,
       mechdog_stop: this.wrapperFunctions.mechdog_stop,
+      mechdog_action: this.wrapperFunctions.mechdog_action,
       mechdog_handshake: this.wrapperFunctions.mechdog_handshake,
       mechdog_boxing: this.wrapperFunctions.mechdog_boxing,
       // Kicker
