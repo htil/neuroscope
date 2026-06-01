@@ -46,7 +46,9 @@ class MechDogController:
         self.connected = False
         self.device_name = None
         self.last_error = None
-        self.last_battery = None
+        self.battery_raw_max = float(os.getenv("MECHDOG_BATTERY_RAW_MAX", "8500"))
+        self.last_battery_raw = None
+        self.last_battery_percent = None
         self.last_sonar_distance = None
         self._notify_started = False
         self._response_queue = asyncio.Queue()
@@ -105,7 +107,7 @@ class MechDogController:
         if len(parts) >= 3 and parts[0] == "CMD":
             if parts[1] == "6":
                 try:
-                    self.last_battery = int(parts[2])
+                    self._set_battery_raw(int(parts[2]))
                 except ValueError:
                     pass
             elif parts[1] == "4":
@@ -120,6 +122,15 @@ class MechDogController:
                 self._response_queue.get_nowait()
             except asyncio.QueueEmpty:
                 break
+
+    def _battery_percent_from_raw(self, raw_battery):
+        percent = round((float(raw_battery) / self.battery_raw_max) * 100)
+        return max(0, min(100, percent))
+
+    def _set_battery_raw(self, raw_battery):
+        self.last_battery_raw = raw_battery
+        self.last_battery_percent = self._battery_percent_from_raw(raw_battery)
+        return self.last_battery_percent
 
     async def _start_notifications(self):
         if self._notify_started or not self.client:
@@ -369,14 +380,15 @@ class MechDogController:
     async def get_battery(self):
         payload = await self.query_command(self.command_battery, lambda value: value.startswith("CMD|6|"))
         parts = payload.split("|")
-        battery = int(parts[2])
-        self.last_battery = battery
+        battery_raw = int(parts[2])
+        battery_percent = self._set_battery_raw(battery_raw)
         return {
             "status": "success",
             "action": "battery",
-            "battery": battery,
-            "battery_raw": battery,
-            "battery_level": battery,
+            "battery": battery_percent,
+            "battery_percent": battery_percent,
+            "battery_raw": battery_raw,
+            "battery_level": battery_percent,
         }
 
     async def get_sonar_distance(self):
@@ -394,9 +406,10 @@ class MechDogController:
             "device_name": self.device_name,
             "device_address": self.device_address,
             "last_error": self.last_error,
-            "battery": self.last_battery,
-            "battery_raw": self.last_battery,
-            "battery_level": self.last_battery,
+            "battery": self.last_battery_percent,
+            "battery_percent": self.last_battery_percent,
+            "battery_raw": self.last_battery_raw,
+            "battery_level": self.last_battery_percent,
             "sonar_distance_mm": self.last_sonar_distance,
             "timestamp": datetime.now().isoformat(),
         }

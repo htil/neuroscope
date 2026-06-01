@@ -9,7 +9,7 @@ import Interpreter from "js-interpreter";
 import { InterpreterAPI } from "./interpreter-api.js";
 
 Blockly.setLocale(locale);
-let { cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_drone, cat_mechdog } = Categories;
+let { cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_drone, cat_mechdog, cat_mechdog_advanced } = Categories;
 
 export const BlocklyMain = class {
   constructor() {
@@ -33,7 +33,8 @@ export const BlocklyMain = class {
       cat_sep,
       cat_data,
       cat_drone,
-      cat_mechdog
+      cat_mechdog,
+      cat_mechdog_advanced
     ]);
 
     this.workspace = Blockly.inject("blocklyDiv", {
@@ -109,6 +110,8 @@ export const BlocklyMain = class {
       ccw: "rotate counter-clockwise",
       cw: "rotate clockwise",
       vex_forward: "forward",
+      mechdog_forward_distance: "move forward",
+      mechdog_backward_distance: "move backward",
       mechdog_forward_continuous: "move forward",
       mechdog_backward_continuous: "move backward",
       mechdog_back: "back",
@@ -118,6 +121,9 @@ export const BlocklyMain = class {
       vex_turn_right: "turn right",
       mechdog_stop: "stop dog",
       mechdog_drive: "drive",
+      mechdog_drive_values: "drive",
+      mechdog_turn_left_steering: "turn left",
+      mechdog_turn_right_steering: "turn right",
       mechdog_handshake: "handshake",
       mechdog_boxing: "boxing",
       controls_if: "if"
@@ -271,6 +277,8 @@ export const BlocklyMain = class {
             );
             break;
           case "vex_forward":
+          case "mechdog_forward_distance":
+          case "mechdog_backward_distance":
           case "mechdog_back":
           case "vex_left":
           case "vex_right":
@@ -279,6 +287,19 @@ export const BlocklyMain = class {
               block,
               "distance",
               `Add a number of inches for ${this.getBlockLabel(block)}.`
+            );
+            break;
+          case "mechdog_drive_values":
+            this.validateRequiredInput(errors, block, "speed", "Add a speed for this drive block.");
+            this.validateRequiredInput(errors, block, "steering", "Add a steering value for this drive block.");
+            break;
+          case "mechdog_turn_left_steering":
+          case "mechdog_turn_right_steering":
+            this.validateRequiredInput(
+              errors,
+              block,
+              "steering",
+              `Add a steering value for ${this.getBlockLabel(block)}.`
             );
             break;
         }

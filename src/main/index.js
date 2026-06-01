@@ -479,16 +479,18 @@ function attachStatusListener() {
           deviceName: msg.device_name,
           deviceAddress: msg.device_address,
           lastError: msg.last_error,
-          battery: msg.battery_raw ?? msg.battery_level ?? msg.battery,
-          batteryRaw: msg.battery_raw ?? msg.battery_level ?? msg.battery,
+          battery: msg.battery_percent ?? msg.battery_level ?? msg.battery,
+          batteryPercent: msg.battery_percent ?? msg.battery_level ?? msg.battery,
+          batteryRaw: msg.battery_raw,
           sonarDistanceMm: msg.sonar_distance_mm
         });
       } else if (msg.action === 'battery' || msg.action === 'sonar') {
         publishRobotStatus({
           wsConnected: true,
           backendRunning: true,
-          battery: msg.battery_raw ?? msg.battery_level ?? msg.battery,
-          batteryRaw: msg.battery_raw ?? msg.battery_level ?? msg.battery,
+          battery: msg.battery_percent ?? msg.battery_level ?? msg.battery,
+          batteryPercent: msg.battery_percent ?? msg.battery_level ?? msg.battery,
+          batteryRaw: msg.battery_raw,
           sonarDistanceMm: msg.distance_mm
         });
       }

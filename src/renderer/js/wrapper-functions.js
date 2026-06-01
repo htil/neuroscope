@@ -112,6 +112,14 @@ export const WrapperFunctions = class {
     window.electronAPI.vexRight(distance);
   }
 
+  mechdog_forward(distance) {
+    window.electronAPI.sendCommand({ action: "move", distance, heading: 0 });
+  }
+
+  mechdog_backward(distance) {
+    window.electronAPI.sendCommand({ action: "move", distance, heading: 180 });
+  }
+
   mechdog_forward_continuous() {
     window.electronAPI.sendCommand({ action: "run", direction: "forward" });
   }
@@ -122,6 +130,24 @@ export const WrapperFunctions = class {
 
   mechdog_drive(speed, steering) {
     window.electronAPI.sendCommand({ action: "drive", speed, steering });
+  }
+
+  mechdog_turn_left_steering(steering) {
+    const amount = Math.max(0, Math.min(40, Math.abs(Number(steering) || 0)));
+    window.electronAPI.sendCommand({
+      action: "drive",
+      speed: amount === 0 ? 0 : 60,
+      steering: amount === 0 ? 0 : -amount
+    });
+  }
+
+  mechdog_turn_right_steering(steering) {
+    const amount = Math.max(0, Math.min(40, Math.abs(Number(steering) || 0)));
+    window.electronAPI.sendCommand({
+      action: "drive",
+      speed: amount === 0 ? 0 : 60,
+      steering: amount
+    });
   }
 
   mechdog_back(distance) {

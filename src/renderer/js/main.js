@@ -18,6 +18,11 @@ import { simpleTextView } from "./simple-text-view.js";
 let ws;
 let wsReconnectAttempts = 0;
 const maxReconnectAttempts = 5;
+const BATTERY_SAMPLE_WINDOW = 5;
+const BATTERY_DISPLAY_INTERVAL_MS = 10000;
+const batteryPercentSamples = [];
+let displayedBatteryPercent = null;
+let lastBatteryDisplayUpdate = 0;
 
 // function connectWebSocket() {
 //   ws = new WebSocket("ws://127.0.0.1:8777");
@@ -57,13 +62,40 @@ function updateMechdogBatteryReadout(battery) {
   const batteryEl = document.getElementById("battery");
   if (!batteryEl) return;
 
-  const rawBattery = Number(battery);
-  if (!Number.isFinite(rawBattery)) {
+  const batteryPercent = Number(battery);
+  if (!Number.isFinite(batteryPercent)) {
     batteryEl.textContent = "Bat --";
     return;
   }
 
-  batteryEl.textContent = `Bat ${Math.round(rawBattery)}`;
+  batteryEl.textContent = `Bat ${Math.round(batteryPercent)}%`;
+}
+
+function getStableBatteryPercent(nextBatteryPercent, now = Date.now()) {
+  const batteryPercent = Number(nextBatteryPercent);
+  if (!Number.isFinite(batteryPercent)) {
+    return displayedBatteryPercent;
+  }
+
+  batteryPercentSamples.push(Math.max(0, Math.min(100, batteryPercent)));
+  if (batteryPercentSamples.length > BATTERY_SAMPLE_WINDOW) {
+    batteryPercentSamples.shift();
+  }
+
+  const average =
+    batteryPercentSamples.reduce((sum, value) => sum + value, 0) /
+    batteryPercentSamples.length;
+  const averagedPercent = Math.round(average);
+
+  if (
+    displayedBatteryPercent === null ||
+    now - lastBatteryDisplayUpdate >= BATTERY_DISPLAY_INTERVAL_MS
+  ) {
+    displayedBatteryPercent = averagedPercent;
+    lastBatteryDisplayUpdate = now;
+  }
+
+  return displayedBatteryPercent;
 }
 
 function updateMechdogSonarReadout(sonarDistanceMm) {
@@ -121,7 +153,12 @@ export const NeuroScope = class {
 
     // Ensure a defined, numeric global for wrapper functions
     window.band_powers = { delta: 0, theta: 0, alpha: 0, beta: 0, gamma: 0 };
-    window.mechdogTelemetry = { battery: null, sonarDistanceMm: 0 };
+    window.mechdogTelemetry = {
+      battery: null,
+      batteryInstant: null,
+      batteryRaw: null,
+      sonarDistanceMm: 0
+    };
     window.neuroConsole = this.console;
 
     setTimeout(() => {
@@ -135,10 +172,18 @@ export const NeuroScope = class {
     }, 500);
 
     window.electronAPI.onVexStatus((status) => {
+      const instantBattery = Number(status?.batteryPercent ?? status?.battery);
+      const hasInstantBattery = Number.isFinite(instantBattery);
+      const stableBattery = hasInstantBattery
+        ? getStableBatteryPercent(instantBattery)
+        : window.mechdogTelemetry.battery;
+
       window.mechdogTelemetry = {
-        battery: Number.isFinite(Number(status?.batteryRaw ?? status?.battery))
-          ? Number(status.batteryRaw ?? status.battery)
-          : window.mechdogTelemetry.battery,
+        battery: stableBattery,
+        batteryInstant: hasInstantBattery ? instantBattery : window.mechdogTelemetry.batteryInstant,
+        batteryRaw: Number.isFinite(Number(status?.batteryRaw))
+          ? Number(status.batteryRaw)
+          : window.mechdogTelemetry.batteryRaw,
         sonarDistanceMm: Number.isFinite(Number(status?.sonarDistanceMm))
           ? Number(status.sonarDistanceMm)
           : window.mechdogTelemetry.sonarDistanceMm,

@@ -157,10 +157,10 @@ export const createCustomBlocks = function () {
 
   var getMechdogBattery = {
     type: "mechdog_battery",
-    message0: "dog battery raw",
+    message0: "dog battery percent",
     output: "Number",
     colour: 70,
-    tooltip: "Latest raw MechDog battery value",
+    tooltip: "Latest MechDog battery value from 0 to 100 percent",
     helpUrl: ""
   };
 
@@ -704,6 +704,62 @@ javascriptGenerator.forBlock["mechdog_back"] = function (block, generator) {
   return `mechdog_back(${distance});\n`;
 };
 
+// MechDog Forward Distance Block
+var mechdogForwardDistance = {
+  type: "mechdog_forward_distance",
+  message0: "move forward %1 inches",
+  args0: [
+    {
+      type: "input_value",
+      name: "distance",
+      check: "Number"
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  inputsInline: true,
+  colour: 70
+};
+
+Blockly.Blocks["mechdog_forward_distance"] = {
+  init: function () {
+    this.jsonInit(mechdogForwardDistance);
+  }
+};
+
+javascriptGenerator.forBlock["mechdog_forward_distance"] = function (block, generator) {
+  var distance = generator.valueToCode(block, "distance", Order.ATOMIC) || "4";
+  return `mechdog_forward(${distance});\n`;
+};
+
+// MechDog Backward Distance Block
+var mechdogBackwardDistance = {
+  type: "mechdog_backward_distance",
+  message0: "move backward %1 inches",
+  args0: [
+    {
+      type: "input_value",
+      name: "distance",
+      check: "Number"
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  inputsInline: true,
+  colour: 70
+};
+
+Blockly.Blocks["mechdog_backward_distance"] = {
+  init: function () {
+    this.jsonInit(mechdogBackwardDistance);
+  }
+};
+
+javascriptGenerator.forBlock["mechdog_backward_distance"] = function (block, generator) {
+  var distance = generator.valueToCode(block, "distance", Order.ATOMIC) || "4";
+  return `mechdog_backward(${distance});\n`;
+};
+
 // MechDog Continuous Forward Block
 var mechdogForwardContinuous = {
   type: "mechdog_forward_continuous",
@@ -768,6 +824,94 @@ javascriptGenerator.forBlock["mechdog_drive"] = function (block) {
   var speed = block.getFieldValue("SPEED");
   var steering = block.getFieldValue("STEERING");
   return `mechdog_drive(${speed}, ${steering});\n`;
+};
+
+// Advanced MechDog drive block with value inputs so variables can control movement.
+var mechdogDriveValues = {
+  type: "mechdog_drive_values",
+  message0: "drive speed %1 steering %2",
+  args0: [
+    {
+      type: "input_value",
+      name: "speed",
+      check: "Number"
+    },
+    {
+      type: "input_value",
+      name: "steering",
+      check: "Number"
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  inputsInline: true,
+  colour: 70
+};
+
+Blockly.Blocks["mechdog_drive_values"] = {
+  init: function () {
+    this.jsonInit(mechdogDriveValues);
+  }
+};
+
+javascriptGenerator.forBlock["mechdog_drive_values"] = function (block, generator) {
+  var speed = generator.valueToCode(block, "speed", Order.ATOMIC) || "60";
+  var steering = generator.valueToCode(block, "steering", Order.ATOMIC) || "0";
+  return `mechdog_drive(${speed}, ${steering});\n`;
+};
+
+// Advanced continuous steering turns. These are not degree turns; students still
+// use wait seconds + stop dog to control duration.
+var mechdogTurnLeftSteering = {
+  type: "mechdog_turn_left_steering",
+  message0: "turn left %1",
+  args0: [
+    {
+      type: "input_value",
+      name: "steering",
+      check: "Number"
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 70
+};
+
+Blockly.Blocks["mechdog_turn_left_steering"] = {
+  init: function () {
+    this.jsonInit(mechdogTurnLeftSteering);
+  }
+};
+
+javascriptGenerator.forBlock["mechdog_turn_left_steering"] = function (block, generator) {
+  var steering = generator.valueToCode(block, "steering", Order.ATOMIC) || "20";
+  return `mechdog_turn_left_steering(${steering});\n`;
+};
+
+var mechdogTurnRightSteering = {
+  type: "mechdog_turn_right_steering",
+  message0: "turn right %1",
+  args0: [
+    {
+      type: "input_value",
+      name: "steering",
+      check: "Number"
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 70
+};
+
+Blockly.Blocks["mechdog_turn_right_steering"] = {
+  init: function () {
+    this.jsonInit(mechdogTurnRightSteering);
+  }
+};
+
+javascriptGenerator.forBlock["mechdog_turn_right_steering"] = function (block, generator) {
+  var steering = generator.valueToCode(block, "steering", Order.ATOMIC) || "20";
+  return `mechdog_turn_right_steering(${steering});\n`;
 };
 
 // MechDog Stop Block

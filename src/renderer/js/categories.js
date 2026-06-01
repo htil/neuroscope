@@ -46,16 +46,25 @@ export const Categories = {
     name: "MechDog",
     colour: 70,
     modules: [
-      "mechdog_battery",
-      "mechdog_sonar",
-      "mechdog_forward_continuous",
-      "mechdog_backward_continuous",
+      "mechdog_forward_distance",
+      "mechdog_backward_distance",
       "vex_turn_left",
       "vex_turn_right",
       "mechdog_stop",
-      "mechdog_drive",
       "mechdog_handshake",
       "mechdog_boxing"
+    ]
+  },
+
+  cat_mechdog_advanced: {
+    name: "Advanced",
+    colour: 70,
+    modules: [
+      "mechdog_battery",
+      "mechdog_sonar",
+      "mechdog_drive_values",
+      "mechdog_turn_left_steering",
+      "mechdog_turn_right_steering"
     ]
   },
 
