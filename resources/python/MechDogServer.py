@@ -347,15 +347,17 @@ class MechDogController:
         if speed == 0 and steering == 0:
             await self.stop()
             direction = "stop"
+        elif speed < 0:
+            # The available BLE command set has a backward command, but no confirmed
+            # backward steering arc. Negative speed therefore means backward.
+            await self.write_command(self.command_backward)
+            direction = "backward"
         elif steering < 0:
             await self.write_command(self.command_turn_left)
             direction = "left"
         elif steering > 0:
             await self.write_command(self.command_turn_right)
             direction = "right"
-        elif speed < 0:
-            await self.write_command(self.command_backward)
-            direction = "backward"
         else:
             await self.write_command(self.command_forward)
             direction = "forward"

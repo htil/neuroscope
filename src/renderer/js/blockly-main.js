@@ -9,7 +9,7 @@ import Interpreter from "js-interpreter";
 import { InterpreterAPI } from "./interpreter-api.js";
 
 Blockly.setLocale(locale);
-let { cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_drone, cat_mechdog, cat_mechdog_advanced } = Categories;
+let { cat_logic, cat_loops, cat_math, cat_sep, cat_data, cat_mechdog, cat_mechdog_advanced } = Categories;
 
 export const BlocklyMain = class {
   constructor() {
@@ -32,7 +32,6 @@ export const BlocklyMain = class {
       cat_math,
       cat_sep,
       cat_data,
-      cat_drone,
       cat_mechdog,
       cat_mechdog_advanced
     ]);
