@@ -21,10 +21,12 @@ class MechDogController:
     def __init__(self):
         self.device_name_prefix = os.getenv("MECHDOG_NAME_PREFIX", "mechdog_").lower()
         self.device_name_match = os.getenv("MECHDOG_NAME_MATCH", "").strip().lower()
-        self.device_address = os.getenv("MECHDOG_ADDRESS", "").strip()
+        self.configured_device_address = os.getenv("MECHDOG_ADDRESS", "").strip()
+        self.device_address = self.configured_device_address
         self.write_uuid = os.getenv("MECHDOG_WRITE_UUID", "0000ffe1-0000-1000-8000-00805f9b34fb")
         self.notify_uuid = os.getenv("MECHDOG_NOTIFY_UUID", "0000ffe2-0000-1000-8000-00805f9b34fb")
         self.pair = os.getenv("MECHDOG_PAIR", "0").strip().lower() not in ("0", "false", "no")
+        self.unpair_on_disconnect = os.getenv("MECHDOG_UNPAIR_ON_DISCONNECT", "1").strip().lower() not in ("0", "false", "no")
 
         self.command_stop = "CMD|3|0|$"
         self.command_forward = os.getenv("MECHDOG_CMD_FORWARD", "CMD|3|3|$")
@@ -56,6 +58,9 @@ class MechDogController:
         self.move_seconds_per_unit = float(os.getenv("MECHDOG_MOVE_SECONDS_PER_UNIT", "0.15"))
         self.turn_seconds_per_90 = float(os.getenv("MECHDOG_TURN_SECONDS_PER_90", "0.7"))
         self.response_timeout_seconds = float(os.getenv("MECHDOG_RESPONSE_TIMEOUT_SECONDS", "3"))
+        self.connect_timeout_seconds = float(os.getenv("MECHDOG_CONNECT_TIMEOUT_SECONDS", "15"))
+        self.disconnect_timeout_seconds = float(os.getenv("MECHDOG_DISCONNECT_TIMEOUT_SECONDS", "6"))
+        self.unpair_timeout_seconds = float(os.getenv("MECHDOG_UNPAIR_TIMEOUT_SECONDS", "8"))
 
         self.client = None
         self.connected = False
@@ -71,9 +76,9 @@ class MechDogController:
         self._motion_lock = asyncio.Lock()
 
     async def _find_device(self):
-        if self.device_address:
-            logger.info("Using configured MechDog address: %s", self.device_address)
-            return self.device_address
+        if self.configured_device_address:
+            logger.info("Using configured MechDog address: %s", self.configured_device_address)
+            return self.configured_device_address
 
         if self.device_name_match:
             logger.info("Scanning for MechDog name containing '%s'...", self.device_name_match)
@@ -161,7 +166,7 @@ class MechDogController:
 
             target = await self._find_device()
             client = BleakClient(target, pair=self.pair, disconnected_callback=self._handle_disconnect)
-            await client.connect()
+            await asyncio.wait_for(client.connect(), timeout=self.connect_timeout_seconds)
 
             self.client = client
             self.connected = bool(client.is_connected)
@@ -179,18 +184,46 @@ class MechDogController:
                 self.device_address or "unknown",
             )
 
-    async def disconnect(self):
+    async def disconnect(self, unpair=None):
         async with self._connect_lock:
             if self.client is not None:
                 client = self.client
                 try:
                     if client.is_connected:
-                        await client.disconnect()
+                        try:
+                            logger.info("Sending MechDog stop before disconnect")
+                            await asyncio.wait_for(
+                                client.write_gatt_char(self.write_uuid, self.command_stop.encode("utf-8"), response=False),
+                                timeout=2,
+                            )
+                        except Exception as exc:
+                            logger.warning("Error stopping MechDog before disconnect: %s", exc)
+                    if self._notify_started and client.is_connected:
+                        try:
+                            await asyncio.wait_for(
+                                client.stop_notify(self.notify_uuid),
+                                timeout=self.disconnect_timeout_seconds,
+                            )
+                        except Exception as exc:
+                            logger.warning("Error stopping MechDog notifications: %s", exc)
+                    if client.is_connected:
+                        logger.info("Disconnecting MechDog BLE client")
+                        await asyncio.wait_for(client.disconnect(), timeout=self.disconnect_timeout_seconds)
+                    should_unpair = self.unpair_on_disconnect if unpair is None else bool(unpair)
+                    if should_unpair and hasattr(client, "unpair"):
+                        try:
+                            logger.info("Requesting Windows/BLE unpair for MechDog")
+                            await asyncio.wait_for(client.unpair(), timeout=self.unpair_timeout_seconds)
+                        except Exception as exc:
+                            logger.warning("Error unpairing MechDog: %s", exc)
                 except Exception as exc:
                     logger.warning("Error disconnecting MechDog: %s", exc)
                 finally:
                     self.client = None
                     self.connected = False
+                    self._notify_started = False
+                    if not self.configured_device_address:
+                        self.device_address = None
 
     async def ensure_connected(self):
         if self.client and self.client.is_connected:
@@ -205,9 +238,30 @@ class MechDogController:
             raise
 
     async def reconnect(self):
-        await self.disconnect()
+        await self.disconnect(unpair=True)
         await asyncio.sleep(1.0)
         await self.connect()
+
+    async def switch_mechdog(self, name_match):
+        self.device_name_match = str(name_match or "").strip().lower()
+        self.last_error = None
+        self.device_name = None
+        if not self.configured_device_address:
+            self.device_address = None
+
+        if self.device_name_match:
+            logger.info("Switching MechDog target to name containing '%s'", self.device_name_match)
+        else:
+            logger.info("Switching MechDog target to first device with prefix '%s'", self.device_name_prefix)
+
+        await self.disconnect(unpair=True)
+        await asyncio.sleep(1.0)
+        try:
+            await self.connect()
+        except Exception as exc:
+            self.connected = False
+            self.last_error = str(exc)
+            raise
 
     async def write_command(self, command):
         await self.ensure_connected()
@@ -494,6 +548,31 @@ async def handle_command(websocket, path=None):
                         "last_error": status.get("last_error"),
                         "timestamp": status.get("timestamp"),
                     }
+                elif action == "switch_mechdog":
+                    await controller.switch_mechdog(command.get("name_match", ""))
+                    status = controller.get_status()
+                    response = {
+                        "status": "success",
+                        "action": "switch_mechdog",
+                        "message": "MechDog target switched",
+                        "robot_connected": status.get("robot_connected", False),
+                        "device_name": status.get("device_name"),
+                        "device_address": status.get("device_address"),
+                        "last_error": status.get("last_error"),
+                        "timestamp": status.get("timestamp"),
+                    }
+                elif action == "disconnect_robot":
+                    await controller.disconnect(unpair=command.get("unpair", True))
+                    response = {
+                        "status": "success",
+                        "action": "disconnect_robot",
+                        "message": "MechDog disconnected and release requested",
+                        "robot_connected": False,
+                        "device_name": controller.device_name,
+                        "device_address": controller.device_address,
+                        "last_error": controller.last_error,
+                        "timestamp": datetime.now().isoformat(),
+                    }
                 elif action == "raw_command":
                     response = await controller.raw_command(command.get("command", ""))
                 elif action == "kicker":
@@ -510,7 +589,7 @@ async def handle_command(websocket, path=None):
                 response = {"status": "error", "message": "Invalid JSON format"}
             except Exception as exc:
                 controller.last_error = str(exc)
-                response = {"status": "error", "message": str(exc)}
+                response = {"status": "error", "action": action, "message": str(exc)}
 
             await websocket.send(json.dumps(response))
     except websockets.exceptions.ConnectionClosed:

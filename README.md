@@ -267,6 +267,9 @@ title: "VEX EMG Control"
 | WebSocket not connecting | Robot not reachable | Confirm network / IP (AP mode `192.168.4.1`) |
 | Port 3002 already used | Stale dev process | Kill previous Electron/Parcel instance |
 
+### Known MechDog Issues
+- MechDog selection currently uses a Bluetooth name fragment, so a numeric-only value like `60` can match unrelated BLE devices whose names contain the same number. This can cause the backend to connect to a non-MechDog device. The selector needs stricter filtering before classroom use with many BLE devices nearby.
+
 ### Quick Test After Build
 1. Run the packaged app from `dist/`.
 2. Observe Python server starts (console log: `Python WebSocket server is ready`).

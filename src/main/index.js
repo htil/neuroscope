@@ -31,6 +31,15 @@ let reconnectInProgress = false; // guard against overlapping reconnects
 let pythonStopping = false;
 let backendRestartTimer = null;
 let activeMechDogNameMatch = null;
+let pendingRobotConsoleMessages = [];
+let appCleanupStarted = false;
+let droneStateInterval = null;
+let lastRobotConnectionNotice = {
+  robotConnected: null,
+  deviceName: null,
+  deviceAddress: null,
+  lastError: null
+};
 const robotBackend = String(process.env.ROBOT_BACKEND || 'mechdog').toLowerCase();
 const robotDisplayName = robotBackend === 'mechdog' ? 'MechDog' : 'VEX AIM';
 const ROBOT_CONFIG_FILE = 'robot-config.json';
@@ -85,8 +94,91 @@ function getPythonEnv() {
 }
 
 function publishRobotStatus(status) {
-  if (!win || win.isDestroyed()) return;
-  win.webContents.send('vex-status', status);
+  sendToRendererSafely('vex-status', status);
+}
+
+function sendToRendererSafely(channel, payload) {
+  const targetWindow = win;
+  try {
+    if (!targetWindow || targetWindow.isDestroyed() || !targetWindow.webContents || targetWindow.webContents.isDestroyed()) return;
+    targetWindow.webContents.send(channel, payload);
+  } catch (error) {
+    console.warn(`[${robotDisplayName}] Failed to send renderer message '${channel}':`, error.message);
+  }
+}
+
+function publishRobotConsole(message, level = 'info', extra = {}) {
+  if (!message) return;
+  const status = {
+    ...extra,
+    consoleMessage: String(message),
+    consoleLevel: level
+  };
+
+  if (!win || win.isDestroyed()) {
+    pendingRobotConsoleMessages.push(status);
+    return;
+  }
+  publishRobotStatus(status);
+}
+
+function flushRobotConsoleMessages() {
+  if (!win || win.isDestroyed() || !win.webContents || win.webContents.isDestroyed() || pendingRobotConsoleMessages.length === 0) return;
+  const messages = pendingRobotConsoleMessages;
+  pendingRobotConsoleMessages = [];
+  messages.forEach((status) => publishRobotStatus(status));
+}
+
+function describeMechDogTarget(value = getMechDogNameMatch()) {
+  const target = String(value || '').trim();
+  return target ? `MechDog #${target}` : 'any nearby MechDog';
+}
+
+function publishBackendOutput(data, level = 'info') {
+  const text = String(data || '').trim();
+  if (!text) return;
+
+  const importantPattern = /scanning|scan|found|connected|connect|not found|failed|error|traceback|module|bluetooth|ble|mechdog|switch|disconnect|unpair/i;
+  text.split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => level === 'error' || importantPattern.test(line))
+    .forEach((line) => publishRobotConsole(`[backend] ${line}`, level));
+}
+
+function publishRobotConnectionNotice(msg) {
+  if (!msg || msg.robot_connected === undefined) return;
+
+  const deviceName = msg.device_name || '';
+  const deviceAddress = msg.device_address || '';
+  const lastError = msg.last_error || '';
+  const robotConnected = !!msg.robot_connected;
+  const unchanged =
+    lastRobotConnectionNotice.robotConnected === robotConnected &&
+    lastRobotConnectionNotice.deviceName === deviceName &&
+    lastRobotConnectionNotice.deviceAddress === deviceAddress &&
+    lastRobotConnectionNotice.lastError === lastError;
+
+  if (unchanged) return;
+  lastRobotConnectionNotice = { robotConnected, deviceName, deviceAddress, lastError };
+
+  if (robotConnected) {
+    const device = deviceName || deviceAddress || 'selected MechDog';
+    publishRobotConsole(`${robotDisplayName} connected: ${device}.`, 'success', {
+      robotConnected: true,
+      deviceName,
+      deviceAddress
+    });
+  } else if (lastError) {
+    publishRobotConsole(`${robotDisplayName} not connected: ${lastError}`, 'error', {
+      robotConnected: false,
+      lastError
+    });
+  } else {
+    publishRobotConsole(`${robotDisplayName} backend is running, but the robot is not connected yet.`, 'info', {
+      robotConnected: false
+    });
+  }
 }
 
 function clearBackendRestartTimer() {
@@ -218,11 +310,13 @@ function getPythonScript() {
 
 async function startPythonServer() {
   if (pythonProcess) {
+    publishRobotConsole(`Local ${robotDisplayName} backend is already running.`);
     return;
   }
 
   if (await isRobotBackendPortResponsive()) {
     console.log(`[PYTHON] Reusing existing ${robotDisplayName} backend on port ${ROBOT_WS_PORT}`);
+    publishRobotConsole(`Using existing local ${robotDisplayName} backend on port ${ROBOT_WS_PORT}.`);
     return;
   }
 
@@ -238,10 +332,14 @@ async function startPythonServer() {
   console.log('[PYTHON] Resolved python executable:', pythonExe);
   if (robotBackend === 'mechdog' && pythonEnv.MECHDOG_NAME_MATCH) {
     console.log('[PYTHON] MECHDOG_NAME_MATCH:', pythonEnv.MECHDOG_NAME_MATCH);
+    publishRobotConsole(`Backend will scan for ${describeMechDogTarget(pythonEnv.MECHDOG_NAME_MATCH)}.`);
+  } else if (robotBackend === 'mechdog') {
+    publishRobotConsole('Backend will scan for the first nearby MechDog.');
   }
   activeMechDogNameMatch = robotBackend === 'mechdog' ? (pythonEnv.MECHDOG_NAME_MATCH || '') : null;
 
   try {
+    publishRobotConsole(`Starting local ${robotDisplayName} backend...`);
     if (typeof pythonExe === 'object') {
       if (pythonExe.standalone) {
         // Standalone exe (e.g., PyInstaller bundle) - no script argument needed
@@ -262,14 +360,25 @@ async function startPythonServer() {
     }
   } catch (spawnErr) {
     console.error('[PYTHON] Spawn error:', spawnErr);
+    publishRobotConsole(`Failed to start ${robotDisplayName} backend: ${spawnErr.message}`, 'error');
     scheduleBackendRestart('spawn error');
     return; // abort start
   }
 
-  pythonProcess?.stdout?.on('data', (data) => console.log(`PYTHON: ${data}`));
-  pythonProcess?.stderr?.on('data', (data) => console.error(`PYTHON ERROR: ${data}`));
+  pythonProcess?.stdout?.on('data', (data) => {
+    console.log(`PYTHON: ${data}`);
+    publishBackendOutput(data, 'info');
+  });
+  pythonProcess?.stderr?.on('data', (data) => {
+    console.error(`PYTHON ERROR: ${data}`);
+    publishBackendOutput(data, 'error');
+  });
   pythonProcess?.on('close', (code) => {
     console.log(`Python process exited with code ${code}`);
+    publishRobotConsole(`${robotDisplayName} backend exited with code ${code}.`, code === 0 ? 'info' : 'error', {
+      wsConnected: false,
+      backendRunning: false
+    });
     pythonProcess = null;
     activeMechDogNameMatch = null;
     if (!pythonStopping) {
@@ -283,21 +392,28 @@ async function startPythonServer() {
     const portReady = await isRobotBackendPortResponsive();
     if (portReady) {
       console.log('[PYTHON] WebSocket TCP port responsive');
+      publishRobotConsole(`Local ${robotDisplayName} backend is listening on port ${ROBOT_WS_PORT}.`);
       break;
     }
     await new Promise(r => setTimeout(r, 200));
     if (attempt === maxAttempts) {
       console.warn('[PYTHON] WebSocket port not responsive after retries; proceeding anyway');
+      publishRobotConsole(`Local ${robotDisplayName} backend did not become ready on port ${ROBOT_WS_PORT}.`, 'error', {
+        wsConnected: false,
+        backendRunning: !!pythonProcess
+      });
     }
   }
 }
 
 async function stopPythonServer() {
   console.log(`Stopping Python ${robotDisplayName} server...`);
+  publishRobotConsole(`Stopping local ${robotDisplayName} backend...`);
   pythonStopping = true;
   clearBackendRestartTimer();
   if (!pythonProcess) {
     console.log('Python process already stopped');
+    publishRobotConsole(`Local ${robotDisplayName} backend was already stopped.`);
     return;
   }
   return new Promise(resolve => {
@@ -319,6 +435,7 @@ async function stopPythonServer() {
       if (pythonProcess === proc) pythonProcess = null;
       activeMechDogNameMatch = null;
       console.log(`Python process stopped with code ${code}`);
+      publishRobotConsole(`Local ${robotDisplayName} backend stopped.`);
       resolve();
     };
     proc.once('close', finish);
@@ -343,8 +460,17 @@ async function stopPythonServer() {
 
 async function reconnectVEX(nextMechDogNameMatch) {
   console.log(`Reconnecting to ${robotDisplayName}...`);
+  if (robotBackend === 'mechdog') {
+    const requestedTarget = nextMechDogNameMatch !== undefined
+      ? String(nextMechDogNameMatch || '').trim()
+      : getMechDogNameMatch();
+    publishRobotConsole(`Reconnect requested for ${describeMechDogTarget(requestedTarget)}.`);
+  } else {
+    publishRobotConsole(`Reconnect requested for ${robotDisplayName}.`);
+  }
   if (reconnectInProgress) {
     console.log('Reconnect skipped: already in progress');
+    publishRobotConsole('Reconnect skipped because another reconnect is already running.', 'error');
     return { success: false, message: 'Reconnect already running' };
   }
   reconnectInProgress = true;
@@ -352,25 +478,32 @@ async function reconnectVEX(nextMechDogNameMatch) {
     if (robotBackend === 'mechdog' && nextMechDogNameMatch !== undefined) {
       const previousMechDogNameMatch = getMechDogNameMatch();
       const mechdogNameMatch = setMechDogNameMatch(nextMechDogNameMatch);
+      publishRobotConsole(`Saved MechDog target: ${describeMechDogTarget(mechdogNameMatch)}.`);
       if (mechdogNameMatch !== previousMechDogNameMatch || mechdogNameMatch !== activeMechDogNameMatch) {
-        console.log(`[${robotDisplayName}] MechDog name match changed; restarting backend`);
-        if (ws) { try { ws.close(); } catch { } ws = null; }
-        await stopPythonServer();
-        await new Promise(r => setTimeout(r, 1000));
-        await startPythonServer();
-        await createWebSocketConnection();
+        console.log(`[${robotDisplayName}] MechDog name match changed; switching backend target`);
+        publishRobotConsole(`MechDog target changed; asking backend to switch to ${describeMechDogTarget(mechdogNameMatch)}.`);
+        const switchResponse = await switchMechDogTarget(mechdogNameMatch);
+        pollRobotStatus();
+        return {
+          success: !!switchResponse.robot_connected,
+          message: switchResponse.robot_connected
+            ? `Connected to ${switchResponse.device_name || describeMechDogTarget(mechdogNameMatch)}`
+            : `Switched target, but ${robotDisplayName} is not connected`
+        };
       }
     }
 
     // Instead of killing the Python process, just tell it to reconnect to the robot
     if (ws && ws.readyState === WebSocket.OPEN) {
       console.log('Sending reconnect_robot command to Python server...');
+      publishRobotConsole(`Asking backend to scan/connect to ${describeMechDogTarget()}.`);
       ws.send(JSON.stringify({ action: 'reconnect_robot' }));
 
       // Wait a bit for the reconnection to start
       await new Promise(r => setTimeout(r, 1000));
 
       // Request a status update
+      publishRobotConsole('Checking MechDog connection status...');
       pollRobotStatus();
 
       console.log(`${robotDisplayName} reconnection initiated`);
@@ -378,6 +511,10 @@ async function reconnectVEX(nextMechDogNameMatch) {
     } else {
       // WebSocket isn't connected - fall back to restarting everything
       console.log('WebSocket not connected, restarting Python server...');
+      publishRobotConsole('App is not connected to the local backend; restarting backend and WebSocket.', 'error', {
+        wsConnected: false
+      });
+      await requestRobotRelease('backend restart');
       if (ws) { try { ws.close(); } catch { } ws = null; }
       await stopPythonServer();
 
@@ -394,12 +531,19 @@ async function reconnectVEX(nextMechDogNameMatch) {
       for (let attempt = 1; attempt <= 5; attempt++) {
         try {
           console.log(`WebSocket connection attempt ${attempt}/5...`);
+          publishRobotConsole(`Opening app connection to local backend (${attempt}/5)...`);
           await createWebSocketConnection();
           wsConnected = true;
-          console.log('✓ WebSocket reconnected successfully');
+          console.log('WebSocket reconnected successfully');
+          publishRobotConsole('App connected to local MechDog backend.', 'success', {
+            wsConnected: true
+          });
           break;
         } catch (err) {
           console.warn(`WebSocket reconnection attempt ${attempt} failed:`, err.message);
+          publishRobotConsole(`App backend connection attempt ${attempt}/5 failed: ${err.message}`, 'error', {
+            wsConnected: false
+          });
           if (attempt < 5) {
             await new Promise(r => setTimeout(r, 2000));
           }
@@ -407,14 +551,18 @@ async function reconnectVEX(nextMechDogNameMatch) {
       }
 
       if (!wsConnected) {
+        publishRobotConsole('Failed to reconnect the app to the local backend after 5 attempts.', 'error', {
+          wsConnected: false
+        });
         return { success: false, message: 'Failed to reconnect WebSocket after restarting Python server (5 attempts)' };
       }
 
-      console.log(`✓ ${robotDisplayName} reconnection completed`);
+      console.log(`${robotDisplayName} reconnection completed`);
       return { success: true, message: `Successfully reconnected to ${robotDisplayName}` };
     }
   } catch (error) {
     console.error(`Failed to reconnect to ${robotDisplayName}:`, error);
+    publishRobotConsole(`Reconnect failed: ${error.message}`, 'error');
     return { success: false, message: `Reconnection failed: ${error.message}` };
   } finally {
     reconnectInProgress = false;
@@ -425,6 +573,7 @@ function createWebSocketConnection() {
   return new Promise((resolve, reject) => {
     let wsTimeout;
     try {
+      publishRobotConsole(`Opening app connection to local ${robotDisplayName} backend...`);
       ws = new WebSocket(`ws://127.0.0.1:${ROBOT_WS_PORT}`);
 
       ws.on('open', function open() {
@@ -432,11 +581,18 @@ function createWebSocketConnection() {
         clearTimeout(wsTimeout);
         attachStatusListener();
         publishRobotStatus({ wsConnected: true, robotConnected: false, backendRunning: true });
+        publishRobotConsole(`App connected to local ${robotDisplayName} backend.`, 'success', {
+          wsConnected: true,
+          backendRunning: true
+        });
         resolve();
       });
 
       ws.on('error', function error(err) {
         console.error('WebSocket error:', err.message);
+        publishRobotConsole(`App connection to local backend failed: ${err.message}`, 'error', {
+          wsConnected: false
+        });
         clearTimeout(wsTimeout);
         reject(err);
       });
@@ -444,6 +600,10 @@ function createWebSocketConnection() {
       ws.on('close', function close() {
         console.log('WebSocket connection closed');
         publishRobotStatus({ wsConnected: false, robotConnected: false, backendRunning: !!pythonProcess });
+        publishRobotConsole(`App connection to local ${robotDisplayName} backend closed.`, 'error', {
+          wsConnected: false,
+          backendRunning: !!pythonProcess
+        });
         if (!pythonStopping) {
           ws = null;
           scheduleBackendRestart('websocket close');
@@ -454,6 +614,9 @@ function createWebSocketConnection() {
       wsTimeout = setTimeout(() => {
         if (ws && ws.readyState !== WebSocket.OPEN) {
           console.warn('WebSocket connection timeout after 10s, terminating...');
+          publishRobotConsole('App connection to local backend timed out after 10 seconds.', 'error', {
+            wsConnected: false
+          });
           try { ws.terminate?.(); } catch { }
           reject(new Error('WebSocket connection timeout (10s)'));
         }
@@ -472,6 +635,7 @@ function attachStatusListener() {
     try {
       const msg = JSON.parse(data);
       if (msg.robot_connected !== undefined) {
+        publishRobotConnectionNotice(msg);
         publishRobotStatus({
           wsConnected: true,
           robotConnected: !!msg.robot_connected,
@@ -522,6 +686,168 @@ function pollRobotTelemetry() {
   }
 }
 
+function sendRobotRequest(action, payload = {}, timeoutMs = 15000) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    return Promise.reject(new Error('App is not connected to local MechDog backend'));
+  }
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      ws.off?.('message', onMessage);
+      reject(new Error(`Timed out waiting for ${action} response`));
+    }, timeoutMs);
+
+    function finish(callback, value) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      ws.off?.('message', onMessage);
+      callback(value);
+    }
+
+    function onMessage(data) {
+      try {
+        const msg = JSON.parse(data);
+        if (msg.action !== action) return;
+        finish(resolve, msg);
+      } catch {
+        // Ignore status/welcome messages handled elsewhere.
+      }
+    }
+
+    ws.on('message', onMessage);
+    try {
+      ws.send(JSON.stringify({ action, ...payload }));
+    } catch (error) {
+      finish(reject, error);
+    }
+  });
+}
+
+function killRobotBackendPortOwner() {
+  if (!isWin) {
+    return Promise.resolve(false);
+  }
+
+  return new Promise((resolve) => {
+    const command = [
+      'powershell',
+      '-NoProfile',
+      '-Command',
+      `"`,
+      `$owners = Get-NetTCPConnection -LocalPort ${ROBOT_WS_PORT} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique;`,
+      `foreach ($owner in $owners) { if ($owner -and $owner -ne $PID) { Stop-Process -Id $owner -Force -ErrorAction SilentlyContinue } }`,
+      `"`
+    ].join(' ');
+
+    exec(command, (error) => {
+      if (error) {
+        console.warn(`[${robotDisplayName}] Failed to kill backend port owner:`, error.message);
+        resolve(false);
+        return;
+      }
+      resolve(true);
+    });
+  });
+}
+
+async function ensureRobotWebSocketConnected() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    return;
+  }
+
+  await startPythonServer();
+  await createWebSocketConnection();
+}
+
+async function restartBackendForMechDogTarget(reason) {
+  publishRobotConsole(`Restarting local backend for ${describeMechDogTarget()} (${reason}).`, 'error');
+  if (ws) {
+    try { ws.close(); } catch { }
+    ws = null;
+  }
+
+  await stopPythonServer();
+
+  if (await isRobotBackendPortResponsive()) {
+    publishRobotConsole(`Port ${ROBOT_WS_PORT} is still in use; stopping stale backend listener.`, 'error');
+    await killRobotBackendPortOwner();
+    await new Promise(r => setTimeout(r, 1000));
+  }
+
+  await startPythonServer();
+  await createWebSocketConnection();
+}
+
+async function switchMechDogTarget(mechdogNameMatch) {
+  await ensureRobotWebSocketConnected();
+  publishRobotConsole(`Switching backend target to ${describeMechDogTarget(mechdogNameMatch)}.`);
+  let response;
+  try {
+    response = await sendRobotRequest('switch_mechdog', { name_match: mechdogNameMatch }, 35000);
+  } catch (error) {
+    publishRobotConsole(`Backend did not switch target in-place: ${error.message}`, 'error');
+    await restartBackendForMechDogTarget('switch target fallback');
+    publishRobotConsole(`Asking restarted backend to connect to ${describeMechDogTarget(mechdogNameMatch)}.`);
+    response = await sendRobotRequest('reconnect_robot', {}, 35000);
+  }
+  if (response.status !== 'success' && response.status !== 'ok') {
+    throw new Error(response.message || 'Backend failed to switch MechDog target');
+  }
+
+  activeMechDogNameMatch = String(mechdogNameMatch || '').trim();
+  const connectedDevice = response.device_name || response.device_address || describeMechDogTarget(mechdogNameMatch);
+  publishRobotConsole(`Backend switched to ${connectedDevice}.`, 'success', {
+    wsConnected: true,
+    robotConnected: !!response.robot_connected,
+    deviceName: response.device_name,
+    deviceAddress: response.device_address,
+    lastError: response.last_error
+  });
+  return response;
+}
+
+function requestRobotRelease(reason = 'cleanup') {
+  if (robotBackend !== 'mechdog' || !ws || ws.readyState !== WebSocket.OPEN) {
+    return Promise.resolve(false);
+  }
+
+  publishRobotConsole(`Releasing MechDog Bluetooth connection (${reason})...`);
+  return sendRobotRequest('disconnect_robot', { unpair: true, reason }, 3500)
+    .then((msg) => {
+      if (msg.status === 'success') {
+        publishRobotConsole('MechDog Bluetooth release completed.', 'success');
+        return true;
+      }
+      publishRobotConsole(`MechDog Bluetooth release failed: ${msg.message || 'unknown error'}`, 'error');
+      return false;
+    })
+    .catch((error) => {
+      publishRobotConsole(`MechDog release request failed: ${error.message}`, 'error');
+      return false;
+    });
+}
+
+async function cleanupRobotBackendForExit(reason = 'app exit') {
+  if (appCleanupStarted) return;
+  appCleanupStarted = true;
+
+  await requestRobotRelease(reason);
+
+  if (ws) {
+    try { ws.close(); } catch { }
+    ws = null;
+  }
+
+  if (pythonProcess) {
+    console.log(`Terminating Python process for ${reason}...`);
+    await stopPythonServer();
+  }
+}
+
 async function createWindow() {
   // ---- Start Python VEXServer ----
   await startPythonServer();
@@ -555,6 +881,9 @@ async function createWindow() {
   win.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
     console.error('Window failed to load:', errorDescription);
   });
+  win.webContents.on('did-finish-load', () => {
+    setTimeout(flushRobotConsoleMessages, 500);
+  });
 
   // Load the url of the dev server if in development mode
   // Load the index.html when not in development
@@ -586,11 +915,9 @@ async function createWindow() {
     // Clear the status polling interval
     clearInterval(statusInterval);
     clearInterval(telemetryInterval);
-
-    // Close WebSocket if open
-    if (ws) {
-      try { ws.close(); } catch { }
-      ws = null;
+    if (droneStateInterval) {
+      clearInterval(droneStateInterval);
+      droneStateInterval = null;
     }
 
     // Dereference the window object
@@ -605,7 +932,7 @@ async function createWindow() {
     bleCallback = callback;
     event.preventDefault();
     //console.log(deviceList);
-    win.webContents.send("device_list", deviceList);
+    sendToRendererSafely("device_list", deviceList);
     /*
     deviceList.map((x) => {
       console.log(x.deviceName);
@@ -633,10 +960,10 @@ async function createWindow() {
     }
   });
 
-  setInterval(() => {
+  droneStateInterval = setInterval(() => {
     //console.log(tello.getState());
     let drone_state = tello.getState();
-    win.webContents.send("drone_state", drone_state);
+    sendToRendererSafely("drone_state", drone_state);
   }, 5000);
 
   ipcMain.on("select-ble-device", (event, selected_ble_device) => {
@@ -833,15 +1160,6 @@ async function createWindow() {
 // Some APIs can only be used after this event occurs.
 app.on("ready", createWindow);
 
-// Quit when all windows are closed.
-app.on("window-all-closed", () => {
-  // On macOS it is common for applications and their menu bar
-  // to stay active until the user quits explicitly with Cmd + Q
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
-});
-
 app.on("activate", () => {
   // On macOS it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
@@ -945,31 +1263,12 @@ ipcMain.on("toMain", (event, { data }) => {
 // Cleanup Python process on app quit
 app.on('before-quit', async (e) => {
   e.preventDefault();
-
-  // Stop status polling immediately
-  if (ws) {
-    try { ws.close(); } catch { }
-    ws = null;
-  }
-
-  if (pythonProcess) {
-    console.log('Terminating Python process before quit...');
-    await stopPythonServer();
-  }
+  await cleanupRobotBackendForExit('app quit');
   app.exit(0);
 });
 
 app.on('window-all-closed', async () => {
-  // Stop status polling
-  if (ws) {
-    try { ws.close(); } catch { }
-    ws = null;
-  }
-
-  if (pythonProcess) {
-    console.log('Terminating Python process on window close...');
-    await stopPythonServer();
-  }
+  await cleanupRobotBackendForExit('window close');
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -978,12 +1277,12 @@ app.on('window-all-closed', async () => {
 // Also handle process signals and exit to avoid orphaned Python server
 process.on('SIGINT', () => {
   console.log('SIGINT received, stopping Python...');
-  stopPythonServer().finally(() => process.exit(0));
+  cleanupRobotBackendForExit('SIGINT').finally(() => process.exit(0));
 });
 
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, stopping Python...');
-  stopPythonServer().finally(() => process.exit(0));
+  cleanupRobotBackendForExit('SIGTERM').finally(() => process.exit(0));
 });
 
 process.on('exit', () => {

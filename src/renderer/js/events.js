@@ -117,13 +117,15 @@ export const Events = class {
     button.innerHTML = '<i class="spinner loading icon"></i>';
     button.disabled = true;
 
+    const mechdogNameMatch = document.getElementById("mechdog-name-match")?.value?.trim() || "";
+
     // Log to console
     if (window.neuroConsole) {
-      window.neuroConsole.print("Attempting to reconnect to MechDog...", 'info');
+      const targetText = mechdogNameMatch ? ` #${mechdogNameMatch}` : "";
+      window.neuroConsole.print(`Attempting to reconnect to MechDog${targetText}...`, 'info');
     }
 
     try {
-      const mechdogNameMatch = document.getElementById("mechdog-name-match")?.value?.trim() || "";
       const result = await window.electronAPI.vexReconnect(mechdogNameMatch);
 
       if (result.success) {

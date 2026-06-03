@@ -172,6 +172,10 @@ export const NeuroScope = class {
     }, 500);
 
     window.electronAPI.onVexStatus((status) => {
+      if (status?.consoleMessage && window.neuroConsole) {
+        window.neuroConsole.print(status.consoleMessage, status.consoleLevel || 'info');
+      }
+
       const instantBattery = Number(status?.batteryPercent ?? status?.battery);
       const hasInstantBattery = Number.isFinite(instantBattery);
       const stableBattery = hasInstantBattery
@@ -193,6 +197,10 @@ export const NeuroScope = class {
       try {
         const dot = document.getElementById("vex-status-dot");
         if (!dot) return;
+        const hasConnectionStatus =
+          Object.prototype.hasOwnProperty.call(status || {}, "wsConnected") ||
+          Object.prototype.hasOwnProperty.call(status || {}, "robotConnected");
+        if (!hasConnectionStatus) return;
         const { wsConnected, robotConnected } = status || {};
         dot.className = "ui empty circular label";
         if (!wsConnected) {
