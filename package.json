@@ -1,7 +1,7 @@
 {
   "name": "neuroblock-emg-mechdog",
   "description": "NeuroBlock EMG for MechDog",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "author": {
     "name": "Human Technology Interaction Lab"
   },
@@ -64,6 +64,7 @@
     },
     "files": [
       "src/main/**/*",
+      "src/renderer/icons/paw_icon.png",
       "build/renderer-mechdog-emg/**/*",
       "node_modules/**/*"
     ],
@@ -83,7 +84,7 @@
       "identity": null
     },
     "win": {
-      "icon": "src/renderer/icons/icon.png"
+      "icon": "src/renderer/icons/paw_icon.png"
     },
     "dmg": {
       "contents": [

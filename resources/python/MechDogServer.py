@@ -81,17 +81,22 @@ class MechDogController:
             return self.configured_device_address
 
         if self.device_name_match:
-            logger.info("Scanning for MechDog name containing '%s'...", self.device_name_match)
+            logger.info(
+                "Scanning for MechDog with prefix '%s' and name containing '%s'...",
+                self.device_name_prefix,
+                self.device_name_match,
+            )
         else:
             logger.info("Scanning for MechDog with prefix '%s'...", self.device_name_prefix)
 
         devices = await BleakScanner.discover(timeout=8.0)
         for device in devices:
             device_name = (device.name or "").lower()
+            is_mechdog_name = device_name.startswith(self.device_name_prefix)
             if self.device_name_match:
-                device_matches = self.device_name_match in device_name
+                device_matches = is_mechdog_name and self.device_name_match in device_name
             else:
-                device_matches = device_name.startswith(self.device_name_prefix)
+                device_matches = is_mechdog_name
 
             if device_matches:
                 self.device_name = device.name
@@ -100,7 +105,10 @@ class MechDogController:
                 return device
 
         if self.device_name_match:
-            raise RuntimeError(f"MechDog not found with name containing '{self.device_name_match}'")
+            raise RuntimeError(
+                f"MechDog not found with prefix '{self.device_name_prefix}' "
+                f"and name containing '{self.device_name_match}'"
+            )
         raise RuntimeError(f"MechDog not found for prefix '{self.device_name_prefix}'")
 
     def _handle_disconnect(self, _client):

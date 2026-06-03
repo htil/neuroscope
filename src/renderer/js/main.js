@@ -20,9 +20,12 @@ let wsReconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 const BATTERY_SAMPLE_WINDOW = 5;
 const BATTERY_DISPLAY_INTERVAL_MS = 10000;
+const MECHDOG_TELEMETRY_TIMEOUT_MS = 5000;
 const batteryPercentSamples = [];
 let displayedBatteryPercent = null;
 let lastBatteryDisplayUpdate = 0;
+let lastBatteryTelemetryAt = 0;
+let lastSonarTelemetryAt = 0;
 
 // function connectWebSocket() {
 //   ws = new WebSocket("ws://127.0.0.1:8777");
@@ -120,6 +123,35 @@ function updateMechdogSonarReadout(sonarDistanceMm) {
   }
 }
 
+function clearMechdogBatterySmoothing() {
+  batteryPercentSamples.length = 0;
+  displayedBatteryPercent = null;
+  lastBatteryDisplayUpdate = 0;
+}
+
+function clearStaleMechdogTelemetry(now = Date.now()) {
+  if (!window.mechdogTelemetry) return;
+
+  if (
+    window.mechdogTelemetry.battery !== null &&
+    now - lastBatteryTelemetryAt > MECHDOG_TELEMETRY_TIMEOUT_MS
+  ) {
+    window.mechdogTelemetry.battery = null;
+    window.mechdogTelemetry.batteryInstant = null;
+    window.mechdogTelemetry.batteryRaw = null;
+    clearMechdogBatterySmoothing();
+    updateMechdogBatteryReadout(null);
+  }
+
+  if (
+    window.mechdogTelemetry.sonarDistanceMm !== null &&
+    now - lastSonarTelemetryAt > MECHDOG_TELEMETRY_TIMEOUT_MS
+  ) {
+    window.mechdogTelemetry.sonarDistanceMm = null;
+    updateMechdogSonarReadout(null);
+  }
+}
+
 async function initializeMechdogNameMatchInput() {
   const input = document.getElementById("mechdog-name-match");
   if (!input || !window.electronAPI?.getMechdogNameMatch) {
@@ -178,8 +210,18 @@ export const NeuroScope = class {
 
       const instantBattery = Number(status?.batteryPercent ?? status?.battery);
       const hasInstantBattery = Number.isFinite(instantBattery);
+      const hasSonarDistance = Number.isFinite(Number(status?.sonarDistanceMm));
+      const now = Date.now();
+
+      if (hasInstantBattery) {
+        lastBatteryTelemetryAt = now;
+      }
+      if (hasSonarDistance) {
+        lastSonarTelemetryAt = now;
+      }
+
       const stableBattery = hasInstantBattery
-        ? getStableBatteryPercent(instantBattery)
+        ? getStableBatteryPercent(instantBattery, now)
         : window.mechdogTelemetry.battery;
 
       window.mechdogTelemetry = {
@@ -188,7 +230,7 @@ export const NeuroScope = class {
         batteryRaw: Number.isFinite(Number(status?.batteryRaw))
           ? Number(status.batteryRaw)
           : window.mechdogTelemetry.batteryRaw,
-        sonarDistanceMm: Number.isFinite(Number(status?.sonarDistanceMm))
+        sonarDistanceMm: hasSonarDistance
           ? Number(status.sonarDistanceMm)
           : window.mechdogTelemetry.sonarDistanceMm,
       };
@@ -218,8 +260,11 @@ export const NeuroScope = class {
       }
     });
     window.electronAPI.requestVexStatus();
+    updateMechdogBatteryReadout(window.mechdogTelemetry.battery);
     updateMechdogSonarReadout(window.mechdogTelemetry.sonarDistanceMm);
     initializeMechdogNameMatchInput();
+
+    setInterval(clearStaleMechdogTelemetry, 1000);
 
     const sanitize = (bp) => ({
       delta: Number.isFinite(Number(bp?.delta)) ? Number(bp.delta) : 0,

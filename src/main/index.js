@@ -871,7 +871,7 @@ async function createWindow() {
     width: 1200,
     height: 1000,
     title: `NeuroBlock EMG for ${robotDisplayName}`,
-    icon: path.join(__dirname, "icon.png"),
+    icon: path.join(__dirname, "..", "renderer", "icons", "paw_icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js")
     }
